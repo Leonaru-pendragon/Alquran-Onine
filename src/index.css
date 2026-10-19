@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --font-arabic: 'Amiri', 'Amiri Quran', 'Scheherazade New', serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+}
+
+.font-arabic {
+  font-family: 'Amiri', 'Amiri Quran', 'Scheherazade New', serif;
+}
+
+.font-scheherazade {
+  font-family: 'Scheherazade New', 'Amiri', serif;
+}
+
+/* Custom Reading Theme Styles */
+body.theme-light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+body.theme-sepia {
+  background-color: #fbf5e8;
+  color: #382c1e;
+}
+
+body.theme-dark {
+  background-color: #0b1118;
+  color: #f1f5f9;
+}
+
+body.theme-dark article,
+body.theme-dark .bg-white {
+  background-color: #111a24;
+  color: #f1f5f9;
+}
+
+body.theme-sepia article,
+body.theme-sepia .bg-white {
+  background-color: #f5ece0;
+  color: #382c1e;
+}
+
+/* Quranic verse styling */
+.arabic-verse {
+  direction: rtl;
+  text-align: right;
+  line-height: 2.3;
+  word-spacing: 2px;
+}
+
+/* Tajwid rule color classes */
+.tajwid-ghunnah {
+  color: #10b981; /* emerald */
+  font-weight: 600;
+}
+.tajwid-ikhfa {
+  color: #f59e0b; /* amber */
+  font-weight: 600;
+}
+.tajwid-idgham-bighunnah {
+  color: #06b6d4; /* cyan */
+  font-weight: 600;
+}
+.tajwid-idgham-bilaghunnah {
+  color: #0284c7; /* light blue */
+  font-weight: 600;
+}
+.tajwid-iqlab {
+  color: #6366f1; /* indigo */
+  font-weight: 600;
+}
+.tajwid-qalqalah {
+  color: #ef4444; /* red */
+  font-weight: 600;
+}
+.tajwid-mad {
+  color: #a855f7; /* purple */
+  font-weight: 600;
+}
+
+/* Custom thin scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}

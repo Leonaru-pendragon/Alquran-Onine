@@ -1,0 +1,244 @@
+import React from 'react';
+import { X, Sun, Moon, Coffee, Type, Sparkles, Check } from 'lucide-react';
+import { ReadingSettings, ReadingTheme } from '../types/quran';
+
+interface SettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  settings: ReadingSettings;
+  onUpdateSettings: (newSettings: Partial<ReadingSettings>) => void;
+}
+
+export const SettingsModal: React.FC<SettingsModalProps> = ({
+  isOpen,
+  onClose,
+  settings,
+  onUpdateSettings
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+      <div className="w-full max-w-lg p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
+              Pengaturan Membaca & Aksesibilitas
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Sesuaikan kenyamanan mata, ukuran teks, dan gaya tulisan
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Tutup Pengaturan"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Section 1: Tema Tampilan (Mode Gelap / Sepia / Terang) */}
+        <div className="space-y-2.5">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#2c2217]">
+            Mode Tampilan (Kenyamanan Mata):
+          </label>
+          <div className="grid grid-cols-3 gap-2.5">
+            <button
+              onClick={() => onUpdateSettings({ theme: 'light' })}
+              className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                settings.theme === 'light'
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/30 bg-slate-50 text-slate-900 font-semibold'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <Sun className="w-5 h-5 mx-auto mb-1 text-amber-500" />
+              <span className="text-xs">Terang</span>
+            </button>
+
+            <button
+              onClick={() => onUpdateSettings({ theme: 'sepia' })}
+              className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                settings.theme === 'sepia'
+                  ? 'border-amber-600 ring-2 ring-amber-600/30 bg-[#f3ead7] text-[#2c2217] font-semibold'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <Coffee className="w-5 h-5 mx-auto mb-1 text-amber-700" />
+              <span className="text-xs">Sepia Hangat</span>
+            </button>
+
+            <button
+              onClick={() => onUpdateSettings({ theme: 'dark' })}
+              className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                settings.theme === 'dark'
+                  ? 'border-emerald-400 ring-2 ring-emerald-400/30 bg-slate-800 text-white font-semibold'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40 text-slate-600 dark:text-slate-400'
+              }`}
+            >
+              <Moon className="w-5 h-5 mx-auto mb-1 text-emerald-400" />
+              <span className="text-xs">Malam Gelap</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section 2: Arabic Font Style */}
+        <div className="space-y-2.5">
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#2c2217]">
+            Gaya Kaligrafi Arab:
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              onClick={() => onUpdateSettings({ arabicFontFamily: 'amiri' })}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                settings.arabicFontFamily === 'amiri'
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-950/40'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40'
+              }`}
+            >
+              <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">Amiri (Utsmani)</div>
+              <div className="font-arabic text-lg text-emerald-700 dark:text-emerald-400 mt-1">الرَّحْمَٰنِ الرَّحِيمِ</div>
+            </button>
+
+            <button
+              onClick={() => onUpdateSettings({ arabicFontFamily: 'scheherazade' })}
+              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                settings.arabicFontFamily === 'scheherazade'
+                  ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/60 dark:bg-emerald-950/40'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/40'
+              }`}
+            >
+              <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">Scheherazade (Naskh)</div>
+              <div className="font-scheherazade text-lg text-emerald-700 dark:text-emerald-400 mt-1">الرَّحْمَٰنِ الرَّحِيمِ</div>
+            </button>
+          </div>
+        </div>
+
+        {/* Section 3: Ukuran Teks Huruf Arab Slider */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#2c2217]">
+              Ukuran Huruf Arab:
+            </label>
+            <span className="text-xs font-mono tabular-nums text-emerald-600 dark:text-emerald-400 font-bold">
+              {settings.arabicFontSize} px
+            </span>
+          </div>
+          <input
+            type="range"
+            min={20}
+            max={48}
+            step={2}
+            value={settings.arabicFontSize}
+            onChange={(e) => onUpdateSettings({ arabicFontSize: Number(e.target.value) })}
+            className="w-full accent-emerald-600 cursor-pointer"
+          />
+          {/* Live Preview Box */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 [body.theme-sepia_&]:bg-[#ebdcc0]/50 border border-slate-200/60 dark:border-slate-800/60 text-right arabic-verse">
+            <span
+              className={`${settings.arabicFontFamily === 'scheherazade' ? 'font-scheherazade' : 'font-arabic'} text-slate-900 dark:text-slate-100`}
+              style={{ fontSize: `${settings.arabicFontSize}px` }}
+            >
+              بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+            </span>
+          </div>
+        </div>
+
+        {/* Section 4: Ukuran Teks Terjemahan Slider */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#2c2217]">
+              Ukuran Huruf Terjemahan:
+            </label>
+            <span className="text-xs font-mono tabular-nums text-emerald-600 dark:text-emerald-400 font-bold">
+              {settings.translationFontSize} px
+            </span>
+          </div>
+          <input
+            type="range"
+            min={13}
+            max={22}
+            step={1}
+            value={settings.translationFontSize}
+            onChange={(e) => onUpdateSettings({ translationFontSize: Number(e.target.value) })}
+            className="w-full accent-emerald-600 cursor-pointer"
+          />
+          <p
+            className="text-slate-600 dark:text-slate-300 leading-relaxed"
+            style={{ fontSize: `${settings.translationFontSize}px` }}
+          >
+            "Dengan nama Allah Yang Maha Pengasih lagi Maha Penyayang."
+          </p>
+        </div>
+
+        {/* Section 5: Toggles */}
+        <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Warna Tajwid Interaktif</span>
+              <span className="text-slate-500 dark:text-slate-400">Tampilkan hukum tajwid berwarna pada naskah ayat</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.showTajwid}
+              onChange={(e) => onUpdateSettings({ showTajwid: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Tampilkan Tulisan Latin</span>
+              <span className="text-slate-500 dark:text-slate-400">Transliterasi memudahkan pembaca pemula</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.showLatin}
+              onChange={(e) => onUpdateSettings({ showLatin: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Tampilkan Terjemahan Kemenag RI</span>
+              <span className="text-slate-500 dark:text-slate-400">Arti bahasa Indonesia setiap ayat</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.showTranslation}
+              onChange={(e) => onUpdateSettings({ showTranslation: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+          </label>
+
+          <label className="flex items-center justify-between cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Auto-scroll Audio</span>
+              <span className="text-slate-500 dark:text-slate-400">Gulir otomatis ke ayat yang sedang dilantunkan murottal</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.autoScrollAudio}
+              onChange={(e) => onUpdateSettings({ autoScrollAudio: e.target.checked })}
+              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+            />
+          </label>
+        </div>
+
+        {/* Footer */}
+        <div className="pt-2">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer shadow-sm"
+          >
+            Selesai & Terapkan
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+};

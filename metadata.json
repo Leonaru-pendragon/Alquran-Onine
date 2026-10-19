@@ -1,0 +1,6 @@
+{
+  "name": "Al-Quran Digital & Hadits Lengkap",
+  "description": "Website Al-Quran digital minimalis dengan terjemahan Kemenag RI, tajwid berwarna, audio murottal, ensiklopedia hadits 9 imam, mode gelap, bookmark, dan riwayat bacaan otomatis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
