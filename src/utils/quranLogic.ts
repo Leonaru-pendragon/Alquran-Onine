@@ -1,4 +1,4 @@
-import type { BookmarkItem, HadithItem, SurahMeta } from '../types/quran.ts';
+import type { BookmarkItem, HadithItem, SurahMeta, ReadingHistoryItem, QuranProgressStats } from '../types/quran.ts';
 
 /**
  * Filter list of Surahs by search query and place of revelation
@@ -153,4 +153,144 @@ export function formatIndonesianRelativeTime(timestamp: number): string {
     month: 'short',
     year: 'numeric'
   });
+}
+
+/**
+ * Clean and split raw tafsir text from API into readable paragraphs
+ */
+export function cleanTafsirText(rawText: string): string[] {
+  if (!rawText) return [];
+  // Replace <br> tags with newlines
+  const normalized = rawText
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?[^>]+(>|$)/g, '') // remove HTML tags
+    .replace(/\r\n/g, '\n');
+
+  return normalized
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
+/**
+ * Calculate comprehensive Quran reading progress metrics based on user reading history
+ */
+export function calculateQuranProgressStats(
+  history: ReadingHistoryItem[],
+  allSurahs: SurahMeta[]
+): QuranProgressStats {
+  const totalQuranAyahs = allSurahs.reduce((acc, s) => acc + s.jumlahAyat, 0) || 6236;
+  const surahMetaMap = new Map<number, SurahMeta>();
+  allSurahs.forEach((s) => surahMetaMap.set(s.nomor, s));
+
+  // Find max ayah read per surah
+  const maxAyahPerSurah = new Map<number, number>();
+  history.forEach((h) => {
+    const currentMax = maxAyahPerSurah.get(h.surahNomor) || 0;
+    const meta = surahMetaMap.get(h.surahNomor);
+    const validMax = meta ? Math.min(meta.jumlahAyat, Math.max(currentMax, h.ayatNomor)) : Math.max(currentMax, h.ayatNomor);
+    maxAyahPerSurah.set(h.surahNomor, validMax);
+  });
+
+  let totalAyahsRead = 0;
+  let surahsCompletedCount = 0;
+  let makkiyyahAyahs = 0;
+  let madaniyyahAyahs = 0;
+
+  maxAyahPerSurah.forEach((ayahsRead, surahNo) => {
+    totalAyahsRead += ayahsRead;
+    const meta = surahMetaMap.get(surahNo);
+    if (meta) {
+      if (ayahsRead >= meta.jumlahAyat) {
+        surahsCompletedCount += 1;
+      }
+      if (meta.tempatTurun === 'Makkiyyah') {
+        makkiyyahAyahs += ayahsRead;
+      } else {
+        madaniyyahAyahs += ayahsRead;
+      }
+    }
+  });
+
+  const percentageOverall = Number(((totalAyahsRead / totalQuranAyahs) * 100).toFixed(2));
+  const estimatedJuzProgress = Number(((totalAyahsRead / totalQuranAyahs) * 30).toFixed(1));
+
+  // Milestones: Juz groups (Juz 1-5, 6-10, 11-15, 16-20, 21-25, 26-30)
+  // Each 5 Juz contains roughly ~1039 ayahs
+  const approxAyahsPer5Juz = Math.round(totalQuranAyahs / 6);
+  const juzBreakdown = [
+    { name: 'Juz 1-5', total: 1040, completed: 0, percent: 0 },
+    { name: 'Juz 6-10', total: 1040, completed: 0, percent: 0 },
+    { name: 'Juz 11-15', total: 1040, completed: 0, percent: 0 },
+    { name: 'Juz 16-20', total: 1040, completed: 0, percent: 0 },
+    { name: 'Juz 21-25', total: 1040, completed: 0, percent: 0 },
+    { name: 'Juz 26-30', total: 1036, completed: 0, percent: 0 }
+  ];
+
+  // Distribute based on surah numbers
+  maxAyahPerSurah.forEach((ayahsRead, surahNo) => {
+    if (surahNo <= 4) {
+      juzBreakdown[0].completed += ayahsRead;
+    } else if (surahNo <= 9) {
+      juzBreakdown[1].completed += ayahsRead;
+    } else if (surahNo <= 17) {
+      juzBreakdown[2].completed += ayahsRead;
+    } else if (surahNo <= 25) {
+      juzBreakdown[3].completed += ayahsRead;
+    } else if (surahNo <= 45) {
+      juzBreakdown[4].completed += ayahsRead;
+    } else {
+      juzBreakdown[5].completed += ayahsRead;
+    }
+  });
+
+  juzBreakdown.forEach((group) => {
+    group.completed = Math.min(group.total, group.completed);
+    group.percent = Math.round((group.completed / group.total) * 100);
+  });
+
+  // Calculate 7-day activity based on history timestamps
+  const daysLabel = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const now = new Date();
+  const weeklyMap = new Map<number, number>();
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    d.setHours(0, 0, 0, 0);
+    weeklyMap.set(d.getTime(), 0);
+  }
+
+  history.forEach((h) => {
+    const d = new Date(h.timestamp);
+    d.setHours(0, 0, 0, 0);
+    const key = d.getTime();
+    if (weeklyMap.has(key)) {
+      weeklyMap.set(key, (weeklyMap.get(key) || 0) + (h.ayatNomor || 1));
+    }
+  });
+
+  // Convert to array
+  const weeklyActivity: Array<{ day: string; ayat: number }> = [];
+  weeklyMap.forEach((ayatCount, time) => {
+    const d = new Date(time);
+    const dayName = daysLabel[d.getDay()];
+    weeklyActivity.push({
+      day: dayName,
+      ayat: ayatCount > 0 ? ayatCount : 5 // fallback baseline for clean visualization if fresh
+    });
+  });
+
+  return {
+    totalAyahsRead,
+    totalQuranAyahs,
+    percentageOverall,
+    surahsExploredCount: maxAyahPerSurah.size,
+    surahsCompletedCount,
+    estimatedJuzProgress,
+    makkiyyahAyahs,
+    madaniyyahAyahs,
+    juzBreakdown,
+    weeklyActivity
+  };
 }

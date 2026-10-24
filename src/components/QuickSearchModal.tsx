@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, X, BookOpen, ChevronRight, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, X, BookOpen, ChevronRight, FileText, Mic } from 'lucide-react';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { COMPREHENSIVE_HADITHS } from '../data/hadithsData';
 import { filterSurahs, filterHadiths } from '../utils/quranLogic';
@@ -9,15 +9,25 @@ interface QuickSearchModalProps {
   onClose: () => void;
   onSelectSurah: (nomor: number) => void;
   onSelectHadith: () => void;
+  onOpenVoiceSearch?: () => void;
+  initialQuery?: string;
 }
 
 export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
   isOpen,
   onClose,
   onSelectSurah,
-  onSelectHadith
+  onSelectHadith,
+  onOpenVoiceSearch,
+  initialQuery
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery || '');
+
+  useEffect(() => {
+    if (initialQuery !== undefined) {
+      setQuery(initialQuery);
+    }
+  }, [initialQuery]);
 
   const surahResults = useMemo(() => {
     if (!query.trim()) return [];
@@ -49,9 +59,23 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
           {query && (
             <button
               onClick={() => setQuery('')}
+              aria-label="Bersihkan pencarian"
               className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
             >
               <X className="w-4 h-4" />
+            </button>
+          )}
+          {onOpenVoiceSearch && (
+            <button
+              onClick={() => {
+                onClose();
+                onOpenVoiceSearch();
+              }}
+              aria-label="Pencarian Suara"
+              title="Gunakan Suara"
+              className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg cursor-pointer transition-colors"
+            >
+              <Mic className="w-4 h-4" />
             </button>
           )}
           <button

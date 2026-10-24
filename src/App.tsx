@@ -5,12 +5,16 @@ import { SurahReaderView } from './components/SurahReaderView';
 import { HadithExplorerView } from './components/HadithExplorerView';
 import { TajwidGuideView } from './components/TajwidGuideView';
 import { SavedAndHistoryView } from './components/SavedAndHistoryView';
-import { AudioPlayerBar } from './components/AudioPlayerBar';
+import { AudioPlayerBar, PlayingAudioState } from './components/AudioPlayerBar';
 import { SettingsModal } from './components/SettingsModal';
 import { ShareAyahModal } from './components/ShareAyahModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
+import { VoiceSearchModal } from './components/VoiceSearchModal';
 import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme } from './types/quran';
 import { toggleBookmarkItem } from './utils/quranLogic';
+import { VoiceSearchResult } from './utils/voiceCommandParser';
+import { SURAH_METADATA_LIST } from './data/quranMetadata';
+import { getAyahAudioUrl, getSurahFullAudioUrl } from './services/quranApi';
 
 const SETTINGS_STORAGE_KEY = 'quran_settings_v1';
 const BOOKMARKS_STORAGE_KEY = 'quran_bookmarks_v1';
@@ -85,16 +89,17 @@ export default function App() {
   });
 
   // Audio Playback State
-  const [currentPlayingAudio, setCurrentPlayingAudio] = useState<{
-    surahNomor: number;
-    ayahNomor: number;
-    audioUrl: string;
-    isPlaying: boolean;
-  } | null>(null);
+  const [currentPlayingAudio, setCurrentPlayingAudio] = useState<PlayingAudioState | null>(null);
 
   // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
+  const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
+  const [quickSearchInitialQuery, setQuickSearchInitialQuery] = useState('');
+  const [surahListFilter, setSurahListFilter] = useState<{
+    query?: string;
+    filter?: 'Semua' | 'Makkiyyah' | 'Madaniyyah' | 'Juz';
+  }>({});
   const [shareModalState, setShareModalState] = useState<{
     isOpen: boolean;
     surahName: string;
@@ -166,6 +171,32 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleApplyVoiceResult = (result: VoiceSearchResult) => {
+    if (result.type === 'surah_ayah') {
+      const sNo = result.surahNomor || 1;
+      const aNo = result.ayahNomor || 1;
+      handleSelectSurah(sNo, aNo);
+      if (result.action === 'play') {
+        const audioUrl = getAyahAudioUrl(sNo, aNo);
+        handlePlayAyahAudio(sNo, aNo, audioUrl);
+      }
+    } else if (result.type === 'surah') {
+      const sNo = result.surahNomor || 1;
+      handleSelectSurah(sNo, 1);
+      if (result.action === 'play') {
+        handlePlaySurahFullAudio(sNo);
+      }
+    } else if (result.type === 'juz') {
+      setSurahListFilter({ filter: 'Juz', query: String(result.juzNomor || 1) });
+      setActiveTab('surah');
+    } else if (result.type === 'search_query') {
+      if (result.searchQuery) {
+        setQuickSearchInitialQuery(result.searchQuery);
+        setIsQuickSearchOpen(true);
+      }
+    }
+  };
+
   const handleToggleBookmark = (item: Omit<BookmarkItem, 'id' | 'timestamp'>) => {
     setBookmarks((prev) => toggleBookmarkItem(prev, item));
   };
@@ -199,7 +230,8 @@ export default function App() {
     if (
       currentPlayingAudio &&
       currentPlayingAudio.surahNomor === surahNomor &&
-      currentPlayingAudio.ayahNomor === ayahNomor
+      currentPlayingAudio.ayahNomor === ayahNomor &&
+      !currentPlayingAudio.isFullSurah
     ) {
       // Toggle
       setCurrentPlayingAudio((prev) =>
@@ -210,39 +242,112 @@ export default function App() {
         surahNomor,
         ayahNomor,
         audioUrl,
-        isPlaying: true
+        isPlaying: true,
+        isFullSurah: false
+      });
+    }
+  };
+
+  const handlePlaySurahFullAudio = (surahNomor: number) => {
+    if (
+      currentPlayingAudio &&
+      currentPlayingAudio.surahNomor === surahNomor &&
+      currentPlayingAudio.isFullSurah
+    ) {
+      // Toggle
+      setCurrentPlayingAudio((prev) =>
+        prev ? { ...prev, isPlaying: !prev.isPlaying } : null
+      );
+    } else {
+      const audioUrl = getSurahFullAudioUrl(surahNomor);
+      setCurrentPlayingAudio({
+        surahNomor,
+        ayahNomor: 1,
+        audioUrl,
+        isPlaying: true,
+        isFullSurah: true
       });
     }
   };
 
   const handleNextAyahAudio = () => {
     if (!currentPlayingAudio) return;
-    const nextAyah = currentPlayingAudio.ayahNomor + 1;
-    const nextAudioUrl = `https://equran.nos.wjv-1.neo.id/audio-partial/Misyari-Rasyid-Al-Afasy/${String(
-      currentPlayingAudio.surahNomor
-    ).padStart(3, '0')}${String(nextAyah).padStart(3, '0')}.mp3`;
 
-    setCurrentPlayingAudio({
-      ...currentPlayingAudio,
-      ayahNomor: nextAyah,
-      audioUrl: nextAudioUrl,
-      isPlaying: true
-    });
+    if (currentPlayingAudio.isFullSurah) {
+      if (currentPlayingAudio.surahNomor < 114) {
+        const nextSurah = currentPlayingAudio.surahNomor + 1;
+        handlePlaySurahFullAudio(nextSurah);
+        setCurrentSurahNomor(nextSurah);
+        setInitialAyahNomor(1);
+      }
+      return;
+    }
+
+    const currentMeta = SURAH_METADATA_LIST.find((s) => s.nomor === currentPlayingAudio.surahNomor);
+    const totalAyat = currentMeta?.jumlahAyat || 7;
+    const nextAyah = currentPlayingAudio.ayahNomor + 1;
+
+    if (nextAyah <= totalAyat) {
+      const nextAudioUrl = getAyahAudioUrl(currentPlayingAudio.surahNomor, nextAyah);
+      setCurrentPlayingAudio({
+        ...currentPlayingAudio,
+        ayahNomor: nextAyah,
+        audioUrl: nextAudioUrl,
+        isPlaying: true
+      });
+    } else if (currentPlayingAudio.surahNomor < 114) {
+      // Advance to next Surah Ayah 1
+      const nextSurah = currentPlayingAudio.surahNomor + 1;
+      const nextAudioUrl = getAyahAudioUrl(nextSurah, 1);
+      setCurrentPlayingAudio({
+        surahNomor: nextSurah,
+        ayahNomor: 1,
+        audioUrl: nextAudioUrl,
+        isPlaying: true,
+        isFullSurah: false
+      });
+      setCurrentSurahNomor(nextSurah);
+      setInitialAyahNomor(1);
+    }
   };
 
   const handlePrevAyahAudio = () => {
-    if (!currentPlayingAudio || currentPlayingAudio.ayahNomor <= 1) return;
-    const prevAyah = currentPlayingAudio.ayahNomor - 1;
-    const prevAudioUrl = `https://equran.nos.wjv-1.neo.id/audio-partial/Misyari-Rasyid-Al-Afasy/${String(
-      currentPlayingAudio.surahNomor
-    ).padStart(3, '0')}${String(prevAyah).padStart(3, '0')}.mp3`;
+    if (!currentPlayingAudio) return;
 
-    setCurrentPlayingAudio({
-      ...currentPlayingAudio,
-      ayahNomor: prevAyah,
-      audioUrl: prevAudioUrl,
-      isPlaying: true
-    });
+    if (currentPlayingAudio.isFullSurah) {
+      if (currentPlayingAudio.surahNomor > 1) {
+        const prevSurah = currentPlayingAudio.surahNomor - 1;
+        handlePlaySurahFullAudio(prevSurah);
+        setCurrentSurahNomor(prevSurah);
+        setInitialAyahNomor(1);
+      }
+      return;
+    }
+
+    const prevAyah = currentPlayingAudio.ayahNomor - 1;
+    if (prevAyah >= 1) {
+      const prevAudioUrl = getAyahAudioUrl(currentPlayingAudio.surahNomor, prevAyah);
+      setCurrentPlayingAudio({
+        ...currentPlayingAudio,
+        ayahNomor: prevAyah,
+        audioUrl: prevAudioUrl,
+        isPlaying: true
+      });
+    } else if (currentPlayingAudio.surahNomor > 1) {
+      const prevSurah = currentPlayingAudio.surahNomor - 1;
+      const prevMeta = SURAH_METADATA_LIST.find((s) => s.nomor === prevSurah);
+      const lastAyahOfPrev = prevMeta?.jumlahAyat || 1;
+      const prevAudioUrl = getAyahAudioUrl(prevSurah, lastAyahOfPrev);
+      setCurrentPlayingAudio({
+        surahNomor: prevSurah,
+        ayahNomor: lastAyahOfPrev,
+        audioUrl: prevAudioUrl,
+        isPlaying: true,
+        isFullSurah: false
+      });
+      setCurrentSurahNomor(prevSurah);
+      setInitialAyahNomor(lastAyahOfPrev);
+    }
   };
 
   const handleOpenShareModal = (surahName: string, surahNomor: number, ayah: Ayah) => {
@@ -266,7 +371,11 @@ export default function App() {
         theme={settings.theme}
         setTheme={setTheme}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onQuickSearch={() => setIsQuickSearchOpen(true)}
+        onQuickSearch={() => {
+          setQuickSearchInitialQuery('');
+          setIsQuickSearchOpen(true);
+        }}
+        onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
       />
 
       {/* Main Page Views */}
@@ -277,6 +386,10 @@ export default function App() {
             lastRead={lastRead}
             onNavigateToHadith={() => setActiveTab('hadith')}
             onNavigateToTajwid={() => setActiveTab('tajwid')}
+            onNavigateToProgress={() => setActiveTab('saved')}
+            onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
+            externalSearchQuery={surahListFilter.query}
+            initialFilter={surahListFilter.filter}
           />
         )}
 
@@ -292,6 +405,7 @@ export default function App() {
             onUpdateHistory={handleUpdateHistory}
             currentPlayingAudio={currentPlayingAudio}
             onPlayAyahAudio={handlePlayAyahAudio}
+            onPlaySurahFullAudio={handlePlaySurahFullAudio}
             onOpenShareModal={handleOpenShareModal}
           />
         )}
@@ -345,6 +459,15 @@ export default function App() {
         onClose={() => setIsQuickSearchOpen(false)}
         onSelectSurah={handleSelectSurah}
         onSelectHadith={() => setActiveTab('hadith')}
+        onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
+        initialQuery={quickSearchInitialQuery}
+      />
+
+      {/* Voice Search Modal */}
+      <VoiceSearchModal
+        isOpen={isVoiceSearchOpen}
+        onClose={() => setIsVoiceSearchOpen(false)}
+        onApplyResult={handleApplyVoiceResult}
       />
 
       {/* Share Ayah Modal */}

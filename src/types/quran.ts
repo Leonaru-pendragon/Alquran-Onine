@@ -29,6 +29,20 @@ export interface Ayah {
   tafsir?: string;
 }
 
+export interface AyahTafsirItem {
+  ayat: number;
+  teks: string;
+}
+
+export interface SurahTafsirDetail {
+  nomor: number;
+  nama: string;
+  namaLatin: string;
+  jumlahAyat: number;
+  sumber: string;
+  tafsir: Record<number, string>;
+}
+
 export interface SurahDetail extends SurahMeta {
   ayat: Ayah[];
   bismillah?: {
@@ -52,7 +66,7 @@ export interface TajwidRule {
   penjelasanContoh: string;
 }
 
-export type HadithGrade = 'Shahih' | 'Hasan' | 'Muttafaq Alaih';
+export type HadithGrade = 'Shahih' | 'Hasan' | 'Hasan Shahih' | 'Muttafaq Alaih';
 
 export interface HadithItem {
   id: string;
@@ -98,6 +112,27 @@ export interface ReadingHistoryItem {
   ayatNomor: number;
   totalAyat: number;
   timestamp: number;
+}
+
+export interface QuranProgressStats {
+  totalAyahsRead: number;
+  totalQuranAyahs: number;
+  percentageOverall: number;
+  surahsExploredCount: number;
+  surahsCompletedCount: number;
+  estimatedJuzProgress: number;
+  makkiyyahAyahs: number;
+  madaniyyahAyahs: number;
+  juzBreakdown: Array<{
+    name: string;
+    completed: number;
+    total: number;
+    percent: number;
+  }>;
+  weeklyActivity: Array<{
+    day: string;
+    ayat: number;
+  }>;
 }
 
 export type ReadingTheme = 'light' | 'sepia' | 'dark';

@@ -13,13 +13,15 @@ import {
   Info,
   Sliders,
   Sparkles,
-  ArrowUp
+  ArrowUp,
+  BookOpen
 } from 'lucide-react';
 import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
-import { fetchSurahDetail } from '../services/quranApi';
+import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
 import { renderTajwidHtml } from '../data/tajwidRules';
 import { isAyahBookmarked } from '../utils/quranLogic';
+import { TafsirModal } from './TafsirModal';
 
 interface SurahReaderViewProps {
   currentSurahNomor: number;
@@ -30,8 +32,9 @@ interface SurahReaderViewProps {
   bookmarks: BookmarkItem[];
   onToggleBookmark: (item: Omit<BookmarkItem, 'id' | 'timestamp'>) => void;
   onUpdateHistory: (item: ReadingHistoryItem) => void;
-  currentPlayingAudio: { surahNomor: number; ayahNomor: number; isPlaying: boolean } | null;
+  currentPlayingAudio: { surahNomor: number; ayahNomor: number; isPlaying: boolean; isFullSurah?: boolean } | null;
   onPlayAyahAudio: (surahNomor: number, ayahNomor: number, audioUrl: string) => void;
+  onPlaySurahFullAudio?: (surahNomor: number) => void;
   onOpenShareModal: (surahName: string, surahNomor: number, ayah: Ayah) => void;
 }
 
@@ -46,6 +49,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   onUpdateHistory,
   currentPlayingAudio,
   onPlayAyahAudio,
+  onPlaySurahFullAudio,
   onOpenShareModal
 }) => {
   const [surah, setSurah] = useState<SurahDetail | null>(null);
@@ -55,8 +59,10 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   const [showTafsirInfo, setShowTafsirInfo] = useState(false);
   const [noteModalAyah, setNoteModalAyah] = useState<Ayah | null>(null);
   const [customNote, setCustomNote] = useState('');
+  const [selectedTafsirAyah, setSelectedTafsirAyah] = useState<Ayah | null>(null);
+  const [highlightedAyah, setHighlightedAyah] = useState<number | null>(null);
 
-  const ayahRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const ayahRefs = useRef<Map<number, HTMLElement>>(new Map());
 
   // Load surah details
   useEffect(() => {
@@ -90,14 +96,19 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
     };
   }, [currentSurahNomor]);
 
-  // Jump to initialAyah if provided
+  // Jump to initialAyah if provided and highlight it
   useEffect(() => {
-    if (!loading && surah && initialAyahNomor && initialAyahNomor > 1) {
+    if (!loading && surah && initialAyahNomor) {
       const el = ayahRefs.current.get(initialAyahNomor);
       if (el) {
         setTimeout(() => {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 150);
+        setHighlightedAyah(initialAyahNomor);
+        const timer = setTimeout(() => {
+          setHighlightedAyah(null);
+        }, 4000);
+        return () => clearTimeout(timer);
       }
     }
   }, [loading, surah, initialAyahNomor]);
@@ -335,6 +346,26 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
           <span className="tabular-nums">{surah.jumlahAyat} Ayat</span>
         </div>
 
+        {/* Audio Recitation Action */}
+        <div className="pt-2 flex items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              if (onPlaySurahFullAudio) {
+                onPlaySurahFullAudio(surah.nomor);
+              } else if (surah.ayat.length > 0) {
+                const firstAyah = surah.ayat[0];
+                const audioUrl = firstAyah.audio?.alafasy || getAyahAudioUrl(surah.nomor, firstAyah.nomorAyat);
+                onPlayAyahAudio(surah.nomor, firstAyah.nomorAyat, audioUrl);
+              }
+            }}
+            aria-label={`Putar Murottal Surah ${surah.namaLatin}`}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95"
+          >
+            <Volume2 className="w-4 h-4" />
+            <span>Putar Murottal Surah Ini</span>
+          </button>
+        </div>
+
         {/* Collapsible Surah Brief Info */}
         {showTafsirInfo && (
           <div className="mt-4 pt-4 border-t border-emerald-200/60 dark:border-emerald-900/50 text-left max-w-2xl mx-auto">
@@ -375,6 +406,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             currentPlayingAudio?.surahNomor === surah.nomor &&
             currentPlayingAudio?.ayahNomor === ayah.nomorAyat &&
             currentPlayingAudio?.isPlaying;
+          const isHighlighted = highlightedAyah === ayah.nomorAyat;
 
           return (
             <article
@@ -383,7 +415,11 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 if (el) ayahRefs.current.set(ayah.nomorAyat, el);
                 else ayahRefs.current.delete(ayah.nomorAyat);
               }}
-              className={`p-5 sm:p-6 rounded-2xl border transition-all duration-200 ${
+              className={`p-5 sm:p-6 rounded-2xl border transition-all duration-300 ${
+                isHighlighted
+                  ? 'ring-2 ring-emerald-500 shadow-md ring-offset-2 dark:ring-offset-slate-950 [body.theme-sepia_&]:ring-offset-[#fbf5e8]'
+                  : ''
+              } ${
                 isPlayingThisAyah
                   ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 shadow-sm [body.theme-sepia_&]:bg-[#ebdcc0] [body.theme-sepia_&]:border-[#cbbda2]'
                   : 'bg-white dark:bg-slate-900/60 border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 [body.theme-sepia_&]:bg-[#f6eee0] [body.theme-sepia_&]:border-[#e5dac6]'
@@ -409,20 +445,21 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 <div className="flex items-center gap-1">
                   
                   {/* Play audio button */}
-                  {ayah.audio?.alafasy && (
-                    <button
-                      onClick={() => onPlayAyahAudio(surah.nomor, ayah.nomorAyat, ayah.audio!.alafasy!)}
-                      aria-label={`Putar audio ayat ${ayah.nomorAyat}`}
-                      title="Putar Lantunan Ayat Ini"
-                      className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                        isPlayingThisAyah
-                          ? 'text-white bg-emerald-600 hover:bg-emerald-700'
-                          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {isPlayingThisAyah ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      const audioUrl = ayah.audio?.alafasy || getAyahAudioUrl(surah.nomor, ayah.nomorAyat);
+                      onPlayAyahAudio(surah.nomor, ayah.nomorAyat, audioUrl);
+                    }}
+                    aria-label={`Putar audio ayat ${ayah.nomorAyat}`}
+                    title="Putar Lantunan Ayat Ini"
+                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                      isPlayingThisAyah
+                        ? 'text-white bg-emerald-600 hover:bg-emerald-700'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {isPlayingThisAyah ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                  </button>
 
                   {/* Bookmark button */}
                   <button
@@ -460,6 +497,17 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
                   >
                     <Share2 className="w-4 h-4" />
+                  </button>
+
+                  {/* Tafsir button */}
+                  <button
+                    onClick={() => setSelectedTafsirAyah(ayah)}
+                    aria-label={`Lihat Tafsir Ayat ${ayah.nomorAyat}`}
+                    title="Lihat Tafsir Kemenag RI"
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg cursor-pointer transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Tafsir</span>
                   </button>
 
                 </div>
@@ -578,6 +626,22 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tafsir Modal */}
+      {selectedTafsirAyah && (
+        <TafsirModal
+          isOpen={!!selectedTafsirAyah}
+          onClose={() => setSelectedTafsirAyah(null)}
+          surahNomor={surah.nomor}
+          surahName={surah.namaLatin}
+          totalAyah={surah.jumlahAyat}
+          currentAyah={selectedTafsirAyah}
+          onNavigateAyah={(newAyahNomor) => {
+            const found = surah.ayat.find((a) => a.nomorAyat === newAyahNomor);
+            if (found) setSelectedTafsirAyah(found);
+          }}
+        />
       )}
 
     </div>

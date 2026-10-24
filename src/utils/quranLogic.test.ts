@@ -5,9 +5,11 @@ import {
   filterHadiths,
   calculateReadingProgress,
   isAyahBookmarked,
-  toggleBookmarkItem
+  toggleBookmarkItem,
+  cleanTafsirText,
+  calculateQuranProgressStats
 } from './quranLogic.ts';
-import type { SurahMeta, HadithItem, BookmarkItem } from '../types/quran.ts';
+import type { SurahMeta, HadithItem, BookmarkItem, ReadingHistoryItem } from '../types/quran.ts';
 
 const mockSurahs: SurahMeta[] = [
   { nomor: 1, nama: "الفاتحة", namaLatin: "Al-Fatihah", jumlahAyat: 7, tempatTurun: "Makkiyyah", arti: "Pembukaan", deskripsi: "Surah pembuka" },
@@ -98,4 +100,27 @@ test('filterHadiths matches keywords in Indonesian translation and topic', () =>
   const resultTopic = filterHadiths(mockHadiths, '', 'semua', 'Ilmu Pengetahuan');
   assert.equal(resultTopic.length, 1);
   assert.equal(resultTopic[0].id, 'h2');
+});
+
+test('cleanTafsirText strips html tags and divides into paragraphs', () => {
+  const raw = '<p>Paragraf 1</p><br><br><i>Paragraf 2</i> dengan <b>penjelasan</b>.\n\nParagraf 3.';
+  const paragraphs = cleanTafsirText(raw);
+  assert.equal(paragraphs.length, 3);
+  assert.equal(paragraphs[0], 'Paragraf 1');
+  assert.equal(paragraphs[1], 'Paragraf 2 dengan penjelasan.');
+  assert.equal(paragraphs[2], 'Paragraf 3.');
+});
+
+test('calculateQuranProgressStats computes accurate progress and breakdown', () => {
+  const history: ReadingHistoryItem[] = [
+    { surahNomor: 1, surahNamaLatin: 'Al-Fatihah', ayatNomor: 7, totalAyat: 7, timestamp: Date.now() },
+    { surahNomor: 18, surahNamaLatin: 'Al-Kahf', ayatNomor: 10, totalAyat: 110, timestamp: Date.now() - 86400000 }
+  ];
+
+  const stats = calculateQuranProgressStats(history, mockSurahs);
+  assert.equal(stats.totalAyahsRead, 17);
+  assert.equal(stats.surahsExploredCount, 2);
+  assert.equal(stats.surahsCompletedCount, 1); // Al-Fatihah is completed (7/7)
+  assert.equal(stats.juzBreakdown.length, 6);
+  assert.equal(stats.weeklyActivity.length, 7);
 });

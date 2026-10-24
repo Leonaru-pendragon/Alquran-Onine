@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Bookmark, Clock, Trash2, ArrowUpRight, BookOpen, Edit3, Check, X, Download, Upload } from 'lucide-react';
+import { Bookmark, Clock, Trash2, ArrowUpRight, BookOpen, Edit3, Check, X, Download, Upload, TrendingUp } from 'lucide-react';
 import { BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { formatIndonesianRelativeTime, calculateReadingProgress } from '../utils/quranLogic';
+import { ReadingProgressDashboard } from './ReadingProgressDashboard';
 
 interface SavedAndHistoryViewProps {
   bookmarks: BookmarkItem[];
@@ -11,6 +12,7 @@ interface SavedAndHistoryViewProps {
   onClearHistory: () => void;
   onJumpToSurah: (surahNomor: number, ayahNomor: number) => void;
   onImportBookmarks: (imported: BookmarkItem[]) => void;
+  initialTab?: 'dashboard' | 'bookmarks' | 'history';
 }
 
 export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
@@ -20,9 +22,10 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
   onUpdateBookmarkNote,
   onClearHistory,
   onJumpToSurah,
-  onImportBookmarks
+  onImportBookmarks,
+  initialTab = 'dashboard'
 }) => {
-  const [activeTab, setActiveTab] = useState<'bookmarks' | 'history'>('bookmarks');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookmarks' | 'history'>(initialTab);
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<'all' | 'ayah' | 'hadith'>('all');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
@@ -76,34 +79,46 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
       <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border border-emerald-200/80 dark:border-emerald-900/60 [body.theme-sepia_&]:bg-[#ebdcc0]/50 [body.theme-sepia_&]:border-[#dec9a5] space-y-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300 [body.theme-sepia_&]:text-amber-900">
           <Bookmark className="w-4 h-4" />
-          <span>Akses Cepat Bacaan & Riwayat</span>
+          <span>Progres Tilawah, Penanda & Riwayat</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
-          Penanda & Riwayat Bacaan
+          Progres Khatam & Riwayat Bacaan
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a] max-w-2xl">
-          Kelola ayat-ayat suci dan hadits mulia yang telah Anda tandai beserta catatan refleksi pribadi, serta lanjutkan bacaan Al-Qur'an secara otomatis dari titik terakhir.
+          Visualisasi pencapaian khatam 30 Juz dengan diagram interaktif Recharts, kelola penanda ayat serta hadits favorit, dan lanjutkan tilawah secara otomatis.
         </p>
       </div>
 
       {/* Main Tabs (Segmented Control) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] pb-3">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-start">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-start overflow-x-auto max-w-full">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'dashboard'
+                ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Dashboard Progres</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('bookmarks')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'bookmarks'
                 ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
           >
             <Bookmark className="w-3.5 h-3.5" />
-            <span>Ayat & Hadits Ditandai ({bookmarks.length})</span>
+            <span>Ayat Ditandai ({bookmarks.length})</span>
           </button>
 
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 ${
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'history'
                 ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -115,7 +130,7 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
         </div>
 
         {/* Tab-specific actions */}
-        {activeTab === 'bookmarks' ? (
+        {activeTab === 'bookmarks' && (
           <div className="flex items-center gap-2 text-xs">
             <button
               onClick={handleExportJson}
@@ -134,18 +149,26 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
               <input type="file" accept=".json" onChange={handleFileUpload} className="hidden" />
             </label>
           </div>
-        ) : (
-          readingHistory.length > 0 && (
-            <button
-              onClick={onClearHistory}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer self-start sm:self-auto"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Hapus Semua Riwayat</span>
-            </button>
-          )
+        )}
+
+        {activeTab === 'history' && readingHistory.length > 0 && (
+          <button
+            onClick={onClearHistory}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer self-start sm:self-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Hapus Semua Riwayat</span>
+          </button>
         )}
       </div>
+
+      {/* Dashboard Tab Content */}
+      {activeTab === 'dashboard' && (
+        <ReadingProgressDashboard
+          readingHistory={readingHistory}
+          onJumpToSurah={onJumpToSurah}
+        />
+      )}
 
       {/* Bookmarks Tab Content */}
       {activeTab === 'bookmarks' && (

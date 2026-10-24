@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Bookmark, ChevronRight, X, Sparkles, BookOpen } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Bookmark, ChevronRight, X, Sparkles, BookOpen, TrendingUp, Mic } from 'lucide-react';
 import { SurahMeta, ReadingHistoryItem, JuzMeta } from '../types/quran';
 import { SURAH_METADATA_LIST, JUZ_LIST } from '../data/quranMetadata';
 import { filterSurahs, calculateReadingProgress, formatIndonesianRelativeTime } from '../utils/quranLogic';
@@ -10,16 +10,38 @@ interface SurahListViewProps {
   lastRead: ReadingHistoryItem | null;
   onNavigateToHadith: () => void;
   onNavigateToTajwid: () => void;
+  onNavigateToProgress?: () => void;
+  onOpenVoiceSearch?: () => void;
+  externalSearchQuery?: string;
+  initialFilter?: 'Semua' | 'Makkiyyah' | 'Madaniyyah' | 'Juz';
 }
 
 export const SurahListView: React.FC<SurahListViewProps> = ({
   onSelectSurah,
   lastRead,
   onNavigateToHadith,
-  onNavigateToTajwid
+  onNavigateToTajwid,
+  onNavigateToProgress,
+  onOpenVoiceSearch,
+  externalSearchQuery,
+  initialFilter
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'Semua' | 'Makkiyyah' | 'Madaniyyah' | 'Juz'>('Semua');
+  const [searchQuery, setSearchQuery] = useState(externalSearchQuery || '');
+  const [activeFilter, setActiveFilter] = useState<'Semua' | 'Makkiyyah' | 'Madaniyyah' | 'Juz'>(
+    initialFilter || 'Semua'
+  );
+
+  useEffect(() => {
+    if (externalSearchQuery !== undefined) {
+      setSearchQuery(externalSearchQuery);
+    }
+  }, [externalSearchQuery]);
+
+  useEffect(() => {
+    if (initialFilter !== undefined) {
+      setActiveFilter(initialFilter);
+    }
+  }, [initialFilter]);
 
   // Filter surahs
   const filteredSurahs = useMemo(() => {
@@ -59,13 +81,24 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
               </p>
             </div>
 
-            <button
-              onClick={() => onSelectSurah(lastRead.surahNomor, lastRead.ayatNomor)}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl transition-all cursor-pointer shadow-sm shadow-emerald-600/30 shrink-0 self-start sm:self-auto"
-            >
-              <span>Lanjutkan Membaca</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start sm:self-auto">
+              {onNavigateToProgress && (
+                <button
+                  onClick={onNavigateToProgress}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-white/60 dark:bg-slate-900/60 hover:bg-emerald-500/10 rounded-xl transition-all border border-emerald-300/80 dark:border-emerald-700/80 cursor-pointer shadow-xs"
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Progres Khatam</span>
+                </button>
+              )}
+              <button
+                onClick={() => onSelectSurah(lastRead.surahNomor, lastRead.ayatNomor)}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 rounded-xl transition-all cursor-pointer shadow-sm shadow-emerald-600/30"
+              >
+                <span>Lanjutkan Membaca</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </section>
       )}
@@ -125,7 +158,7 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           
-          {/* Search Input */}
+          {/* Search Input with Voice Search Button */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
@@ -133,16 +166,30 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari nama surah, nomor, atau arti (mis. Al-Kahf, 36, Sapi)..."
-              className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 [body.theme-sepia_&]:bg-[#f6eee0] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
+              className="w-full pl-10 pr-16 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 [body.theme-sepia_&]:bg-[#f6eee0] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+            <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Hapus pencarian"
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {onOpenVoiceSearch && (
+                <button
+                  type="button"
+                  onClick={onOpenVoiceSearch}
+                  aria-label="Pencarian Suara"
+                  title="Cari dengan Perintah Suara"
+                  className="p-1.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg cursor-pointer transition-colors"
+                >
+                  <Mic className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Interactive Filter Tabs (Segmented controls) */}

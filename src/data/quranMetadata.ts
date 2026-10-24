@@ -1,4 +1,4 @@
-import { SurahMeta, JuzMeta } from '../types/quran';
+import type { SurahMeta, JuzMeta } from '../types/quran.ts';
 
 export const SURAH_METADATA_LIST: SurahMeta[] = [
   { nomor: 1, nama: "الفاتحة", namaLatin: "Al-Fatihah", jumlahAyat: 7, tempatTurun: "Makkiyyah", arti: "Pembukaan", deskripsi: "Surah pembuka Al-Quran yang agung, memuat induk dari seluruh isi Al-Quran (Ummul Quran)." },

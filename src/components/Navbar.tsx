@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, BookMarked, Sparkles, Moon, Sun, Coffee, Settings2, Search } from 'lucide-react';
+import { BookOpen, BookMarked, Sparkles, Moon, Sun, Coffee, Settings2, Search, Mic } from 'lucide-react';
 import { ReadingTheme } from '../types/quran';
 
 interface NavbarProps {
@@ -9,6 +9,7 @@ interface NavbarProps {
   setTheme: (theme: ReadingTheme) => void;
   onOpenSettings: () => void;
   onQuickSearch: () => void;
+  onOpenVoiceSearch: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -17,7 +18,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   theme,
   setTheme,
   onOpenSettings,
-  onQuickSearch
+  onQuickSearch,
+  onOpenVoiceSearch
 }) => {
   const toggleTheme = () => {
     if (theme === 'light') setTheme('sepia');
@@ -115,7 +117,17 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Zone 3: Primary Action & Preferences */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <button
+            onClick={onOpenVoiceSearch}
+            aria-label="Pencarian Suara Al-Qur'an"
+            title="Pencarian Suara Al-Qur'an (Web Speech API)"
+            className="p-2 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 [body.theme-sepia_&]:text-amber-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer relative group"
+          >
+            <Mic className="w-4 h-4" />
+            <span className="sr-only">Pencarian Suara</span>
+          </button>
+
           <button
             onClick={onQuickSearch}
             aria-label="Cari Cepat"
