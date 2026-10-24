@@ -59,6 +59,8 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     if (!audioRef.current) {
       const audio = new Audio();
       audio.preload = 'auto';
+      audio.setAttribute('playsinline', 'true');
+      audio.setAttribute('webkit-playsinline', 'true');
       audioRef.current = audio;
     }
 
@@ -188,6 +190,60 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
     };
   }, []);
 
+  // Sync with Android & iOS Lock Screen / Control Center via Media Session API
+  useEffect(() => {
+    if (!currentPlaying || typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
+      return;
+    }
+
+    const meta = SURAH_METADATA_LIST.find((s) => s.nomor === currentPlaying.surahNomor);
+    const trackTitle = currentPlaying.isFullSurah
+      ? `Surah ${meta?.namaLatin || currentPlaying.surahNomor} (Lengkap)`
+      : `QS. ${meta?.namaLatin || currentPlaying.surahNomor} : Ayat ${currentPlaying.ayahNomor}`;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: trackTitle,
+        artist: 'Syaikh Misyari Rasyid Al-Afasy',
+        album: "Al-Qur'an Digital",
+        artwork: [
+          { src: './pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: './pwa-512x512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      });
+      navigator.mediaSession.playbackState = currentPlaying.isPlaying ? 'playing' : 'paused';
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (!currentPlaying.isPlaying) onTogglePlayPause();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (currentPlaying.isPlaying) onTogglePlayPause();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        onPrevAyah();
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        onNextAyah();
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (typeof details.seekTime === 'number' && audioRef.current) {
+          audioRef.current.currentTime = details.seekTime;
+          setCurrentTime(details.seekTime);
+        }
+      });
+    } catch {
+      // Ignore partial MediaSession support on older WebViews
+    }
+  }, [
+    currentPlaying?.surahNomor,
+    currentPlaying?.ayahNomor,
+    currentPlaying?.isFullSurah,
+    currentPlaying?.isPlaying,
+    onTogglePlayPause,
+    onPrevAyah,
+    onNextAyah
+  ]);
+
   if (!currentPlaying) return null;
 
   const currentSurahMeta = SURAH_METADATA_LIST.find((s) => s.nomor === currentPlaying.surahNomor);
@@ -236,9 +292,9 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   return (
     <aside
       aria-label="Pemutar Audio Murottal"
-      className="fixed bottom-0 inset-x-0 z-40 px-3 sm:px-6 py-2.5 sm:py-3 bg-white/95 dark:bg-slate-900/95 [body.theme-sepia_&]:bg-[#f3ead7]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl transition-all"
+      className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-0 inset-x-0 md:inset-x-4 lg:inset-x-0 md:max-w-3xl lg:max-w-none md:mx-auto z-40 px-3 sm:px-6 py-2 sm:py-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white/95 dark:bg-slate-900/95 [body.theme-sepia_&]:bg-[#f3ead7]/95 backdrop-blur-md border-t md:border lg:border-x-0 lg:border-b-0 border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] md:rounded-2xl lg:rounded-none shadow-2xl transition-all"
     >
-      <div className="max-w-6xl mx-auto space-y-1.5 sm:space-y-2">
+      <div className="max-w-6xl mx-auto space-y-1 sm:space-y-2">
         
         {/* Top Mini Progress Bar / Scrubber */}
         <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 dark:text-slate-500">
@@ -291,14 +347,14 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
           </div>
 
           {/* Center: Playback Controls */}
-          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0">
             
             {/* Repeat Ayah */}
             <button
               onClick={() => setIsRepeat(!isRepeat)}
               aria-label="Ulangi Ayat Ini"
               title={isRepeat ? 'Ulangi Ayat (Aktif)' : 'Ulangi Ayat (Nonaktif)'}
-              className={`p-1.5 sm:p-2 rounded-lg cursor-pointer transition-colors ${
+              className={`min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
                 isRepeat
                   ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60'
                   : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
@@ -312,7 +368,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={onPrevAyah}
               aria-label="Ayat Sebelumnya"
               title="Sebelumnya"
-              className="p-1.5 sm:p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <SkipBack className="w-4 h-4" />
             </button>
@@ -322,7 +378,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={onTogglePlayPause}
               disabled={isLoading}
               aria-label={currentPlaying.isPlaying ? 'Jeda Audio' : 'Lanjutkan Audio'}
-              className="p-2 sm:p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer transition-transform active:scale-95 disabled:opacity-50"
+              className="min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-2.5 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm cursor-pointer transition-transform active:scale-95 disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
@@ -338,7 +394,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={onNextAyah}
               aria-label="Ayat Selanjutnya"
               title="Selanjutnya"
-              className="p-1.5 sm:p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               <SkipForward className="w-4 h-4" />
             </button>
@@ -348,7 +404,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={handleSpeedToggle}
               aria-label={`Kecepatan Putar: ${PLAYBACK_SPEEDS[speedIndex]}x`}
               title="Atur Kecepatan Putar"
-              className="px-2 py-1 text-[11px] font-bold font-mono rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+              className="hidden xs:inline-flex sm:inline-flex min-h-10 sm:min-h-0 items-center justify-center px-2 py-1 text-[11px] font-bold font-mono rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               {PLAYBACK_SPEEDS[speedIndex]}x
             </button>
@@ -398,7 +454,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
               onClick={onClose}
               aria-label="Tutup Pemutar Audio"
               title="Tutup"
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+              className="min-w-10 min-h-10 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

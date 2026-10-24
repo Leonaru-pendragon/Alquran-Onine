@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, BookOpen, ChevronLeft, ChevronRight, Copy, Check, Type, RefreshCw, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, BookOpen, ChevronLeft, ChevronRight, Copy, Check, RefreshCw, AlertCircle } from 'lucide-react';
 import { Ayah, SurahTafsirDetail } from '../types/quran';
 import { fetchSurahTafsir } from '../services/quranApi';
 import { cleanTafsirText } from '../utils/quranLogic';
+import { detectHorizontalSwipe } from '../utils/mobilePlatform';
 
 interface TafsirModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [fontSize, setFontSize] = useState<number>(15);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const ayahNomor = currentAyah?.nomorAyat || 1;
 
@@ -85,19 +87,47 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
       });
   };
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const t = e.touches[0];
+    if (t) {
+      touchStartRef.current = { x: t.clientX, y: t.clientY };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!touchStartRef.current) return;
+    const t = e.changedTouches[0];
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!t) return;
+
+    const dir = detectHorizontalSwipe(start.x, start.y, t.clientX, t.clientY);
+    if (dir === 'left' && nextAyah) {
+      onNavigateAyah(nextAyah);
+    } else if (dir === 'right' && prevAyah) {
+      onNavigateAyah(prevAyah);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs">
-      <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl overflow-hidden">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tafsir-modal-title"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/60 backdrop-blur-xs"
+    >
+      <div className="w-full max-w-3xl max-h-[90dvh] sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]">
+        <div className="sm:hidden w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5 shrink-0" />
         
         {/* Modal Top Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#e8dec9] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#e8dec9] flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 shrink-0">
           
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-600/10 dark:bg-emerald-400/10 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0">
               <BookOpen className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
+              <h3 id="tafsir-modal-title" className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
                 Tafsir Kemenag RI
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
@@ -116,11 +146,11 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
                 disabled={!prevAyah}
                 aria-label="Tafsir Ayat Sebelumnya"
                 title="Tafsir Ayat Sebelumnya"
-                className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none cursor-pointer text-slate-600 dark:text-slate-300"
+                className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center hover:bg-slate-200/60 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none cursor-pointer text-slate-600 dark:text-slate-300"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300">
+              <span className="px-2 text-xs font-semibold tabular-nums text-slate-700 dark:text-slate-300 whitespace-nowrap">
                 {ayahNomor} / {totalAyah}
               </span>
               <button
@@ -128,30 +158,30 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
                 disabled={!nextAyah}
                 aria-label="Tafsir Ayat Selanjutnya"
                 title="Tafsir Ayat Selanjutnya"
-                className="p-1.5 hover:bg-slate-200/60 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none cursor-pointer text-slate-600 dark:text-slate-300"
+                className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center hover:bg-slate-200/60 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none cursor-pointer text-slate-600 dark:text-slate-300"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Font size adjustments */}
-            <div className="hidden sm:flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800/40 text-xs">
+            {/* Font size adjustments (accessible on mobile & desktop) */}
+            <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-slate-50 dark:bg-slate-800/40 text-xs">
               <button
                 onClick={() => setFontSize(Math.max(13, fontSize - 1))}
                 aria-label="Perkecil Font Tafsir"
                 title="Perkecil Font Tafsir"
-                className="px-2 py-1.5 font-bold hover:bg-slate-200/60 dark:hover:bg-slate-700 cursor-pointer text-slate-600 dark:text-slate-300"
+                className="min-w-9 min-h-10 sm:min-w-0 sm:min-h-0 px-2 py-1.5 font-bold hover:bg-slate-200/60 dark:hover:bg-slate-700 cursor-pointer text-slate-600 dark:text-slate-300"
               >
                 A-
               </button>
-              <span className="px-1.5 text-[11px] font-mono tabular-nums text-slate-400 border-x border-slate-200 dark:border-slate-800">
+              <span className="hidden sm:inline px-1.5 text-[11px] font-mono tabular-nums text-slate-400 border-x border-slate-200 dark:border-slate-800">
                 {fontSize}px
               </span>
               <button
                 onClick={() => setFontSize(Math.min(22, fontSize + 1))}
                 aria-label="Perbesar Font Tafsir"
                 title="Perbesar Font Tafsir"
-                className="px-2 py-1.5 font-bold hover:bg-slate-200/60 dark:hover:bg-slate-700 cursor-pointer text-slate-600 dark:text-slate-300"
+                className="min-w-9 min-h-10 sm:min-w-0 sm:min-h-0 px-2 py-1.5 font-bold border-l sm:border-l-0 border-slate-200 dark:border-slate-800 hover:bg-slate-200/60 dark:hover:bg-slate-700 cursor-pointer text-slate-600 dark:text-slate-300"
               >
                 A+
               </button>
@@ -163,7 +193,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
               disabled={loading || !!error || paragraphs.length === 0}
               aria-label="Salin Tafsir"
               title="Salin Tafsir Lengkap"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
+              className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer transition-colors"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
@@ -176,7 +206,7 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
             <button
               onClick={onClose}
               aria-label="Tutup Tafsir"
-              className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer ml-1"
+              className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -185,8 +215,12 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
 
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {/* Modal Scrollable Body (supports horizontal swipe for prev/next ayah on touch screens) */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6"
+        >
           
           {/* Reference Verse Box */}
           <div className="p-4 sm:p-5 rounded-xl bg-slate-50 dark:bg-slate-800/40 [body.theme-sepia_&]:bg-[#ebdcc0]/50 border border-slate-200/60 dark:border-slate-800/60 space-y-3">
@@ -254,13 +288,13 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#e8dec9] bg-slate-50/60 dark:bg-slate-900/60 [body.theme-sepia_&]:bg-[#f3ead7]/60 flex items-center justify-between text-xs shrink-0">
-          <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-            Tafsir Kementerian Agama Republik Indonesia
+        <div className="p-3 sm:p-4 border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#e8dec9] bg-slate-50/60 dark:bg-slate-900/60 [body.theme-sepia_&]:bg-[#f3ead7]/60 flex items-center justify-between gap-2 text-xs shrink-0">
+          <span className="text-slate-500 dark:text-slate-400 text-[11px] truncate">
+            <span className="sm:hidden">Geser kiri/kanan pindah ayat · </span>Tafsir Kemenag RI
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+            className="min-h-10 sm:min-h-0 px-4 py-1.5 font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded-lg cursor-pointer shrink-0"
           >
             Tutup
           </button>

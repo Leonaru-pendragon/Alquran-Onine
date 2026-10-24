@@ -18,7 +18,8 @@ import {
 import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
-import { renderTajwidHtml } from '../data/tajwidRules';
+import { renderTajwidHtml, normalizeQuranicText } from '../data/tajwidRules';
+import { getGharibBySurah, getGharibBySurahAyah } from '../data/gharibData';
 import {
   isAyahBookmarked,
   countAyahsInRanges,
@@ -209,6 +210,18 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
 
   const prevSurahNomor = currentSurahNomor > 1 ? currentSurahNomor - 1 : null;
   const nextSurahNomor = currentSurahNomor < 114 ? currentSurahNomor + 1 : null;
+  const surahGharibList = getGharibBySurah(currentSurahNomor);
+
+  const jumpToAyahInSurah = (ayahNo: number) => {
+    const el = ayahRefs.current.get(ayahNo);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setHighlightedAyah(ayahNo);
+      setTimeout(() => {
+        setHighlightedAyah((prev) => (prev === ayahNo ? null : prev));
+      }, 3500);
+    }
+  };
 
   if (loading) {
     return (
@@ -238,8 +251,8 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       
-      {/* Sticky Reader Navigation & Toolstrip */}
-      <div className="sticky top-16 z-30 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 [body.theme-sepia_&]:bg-[#fbf5e8]/90 [body.theme-sepia_&]:border-[#e8dec9]">
+      {/* Reader Navigation & Toolstrip (sticky on >=1024px desktop/iPad landscape, inline on phones & iPad portrait to preserve 85%+ open reading canvas) */}
+      <div className="lg:sticky lg:top-16 z-30 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/95 [body.theme-sepia_&]:bg-[#fbf5e8]/95 [body.theme-sepia_&]:border-[#e8dec9]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           
           {/* Surah Selector & Step Buttons */}
@@ -249,7 +262,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               disabled={!prevSurahNomor}
               aria-label="Surah Sebelumnya"
               title="Surah Sebelumnya"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+              className="min-w-10 min-h-10 lg:min-w-0 lg:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
             >
               <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
             </button>
@@ -259,7 +272,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               value={currentSurahNomor}
               onChange={(e) => onSelectSurah(Number(e.target.value))}
               aria-label="Pilih Surah"
-              className="text-xs sm:text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f3ead7] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer"
+              className="min-h-10 lg:min-h-0 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f3ead7] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer max-w-[215px] sm:max-w-none truncate"
             >
               {SURAH_METADATA_LIST.map((s) => (
                 <option key={s.nomor} value={s.nomor}>
@@ -273,21 +286,21 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               disabled={!nextSurahNomor}
               aria-label="Surah Selanjutnya"
               title="Surah Selanjutnya"
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+              className="min-w-10 min-h-10 lg:min-w-0 lg:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
             >
               <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
             </button>
           </div>
 
           {/* Reading Customization Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
             
             {/* Tajwid Toggle */}
             <button
               onClick={() => onUpdateSettings({ showTajwid: !settings.showTajwid })}
               aria-label={`Toggle Tajwid: ${settings.showTajwid ? 'Aktif' : 'Nonaktif'}`}
               title="Aktifkan / Nonaktifkan Warna Tajwid"
-              className={`px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border ${
+              className={`min-h-9 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border whitespace-nowrap ${
                 settings.showTajwid
                   ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-semibold'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
@@ -295,6 +308,20 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Tajwid</span>
+            </button>
+
+            {/* Bacaan Gharib Toggle */}
+            <button
+              onClick={() => onUpdateSettings({ showGharib: settings.showGharib === false })}
+              aria-label={`Toggle Catatan Gharib: ${settings.showGharib !== false ? 'Aktif' : 'Nonaktif'}`}
+              title="Tampilkan / Sembunyikan Catatan Bacaan Gharib (Imalah, Saktah, Isymam, dll)"
+              className={`min-h-9 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border whitespace-nowrap ${
+                settings.showGharib !== false
+                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-semibold'
+                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
+              }`}
+            >
+              Gharib
             </button>
 
             {/* Transliteration (Latin) Toggle */}
@@ -384,7 +411,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
         </div>
 
         {/* Audio Recitation Action */}
-        <div className="pt-2 flex items-center justify-center gap-3">
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => {
               if (onPlaySurahFullAudio) {
@@ -402,6 +429,25 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             <span>Putar Murottal Surah Ini</span>
           </button>
         </div>
+
+        {/* Quick Jump Strip if Surah contains Bacaan Gharib */}
+        {surahGharibList.length > 0 && settings.showGharib !== false && (
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs">
+            <span className="text-amber-800 dark:text-amber-300 [body.theme-sepia_&]:text-[#6b4423] font-medium">
+              Bacaan Gharib di surah ini:
+            </span>
+            {surahGharibList.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => jumpToAyahInSurah(g.ayahNomor)}
+                className="px-2.5 py-1 rounded-lg bg-amber-50/90 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-medium cursor-pointer transition-colors"
+              >
+                Ayat {g.ayahNomor} ({g.kategoriNama.split(' ')[0]})
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Collapsible Surah Brief Info */}
         {showTafsirInfo && (
@@ -444,6 +490,8 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             currentPlayingAudio?.ayahNomor === ayah.nomorAyat &&
             currentPlayingAudio?.isPlaying;
           const isHighlighted = highlightedAyah === ayah.nomorAyat;
+          const ayahGharibNotes =
+            settings.showGharib !== false ? getGharibBySurahAyah(surah.nomor, ayah.nomorAyat) : [];
 
           return (
             <article
@@ -463,27 +511,27 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               }`}
             >
               {/* Ayah Top Action Bar */}
-              <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/60 [body.theme-sepia_&]:border-[#e8dec9]/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4 pb-3.5 sm:pb-4 border-b border-slate-100 dark:border-slate-800/60 [body.theme-sepia_&]:border-[#e8dec9]/80">
                 
                 {/* Ayah Index Frame */}
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs tabular-nums bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:bg-[#ebdcc0] [body.theme-sepia_&]:text-[#2c2217]">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs tabular-nums bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:bg-[#ebdcc0] [body.theme-sepia_&]:text-[#2c2217] shrink-0">
                     {surah.nomor}:{ayah.nomorAyat}
                   </div>
                   {isPlayingThisAyah ? (
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                      <Volume2 className="w-3.5 h-3.5" />
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">
+                      <Volume2 className="w-3.5 h-3.5 shrink-0" />
                       <span>Memutar Audio</span>
                     </span>
                   ) : currentSurahLastVisited === ayah.nomorAyat ? (
-                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium whitespace-nowrap">
                       Batas baca terakhir
                     </span>
                   ) : null}
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 flex-wrap justify-end">
+                {/* Actions: single clean row on mobile & desktop */}
+                <div className="flex items-center justify-between sm:justify-end gap-1 w-full sm:w-auto">
                   
                   {/* Mark Read Progress Up To This Ayah */}
                   <button
@@ -491,13 +539,13 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     onClick={() => handleMarkReadUpToAyah(ayah.nomorAyat)}
                     aria-label={`Tandai batas baca sampai ayat ${ayah.nomorAyat}`}
                     title="Tandai batas bacaan Khatam sampai ayat ini"
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1 whitespace-nowrap ${
+                    className={`min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 px-2.5 sm:px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors inline-flex items-center justify-center gap-1 whitespace-nowrap ${
                       markedReadFeedbackAyah === ayah.nomorAyat || currentSurahLastVisited === ayah.nomorAyat
                         ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
                         : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <CheckCircle2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                     <span className="hidden sm:inline">
                       {markedReadFeedbackAyah === ayah.nomorAyat ? 'Tercatat' : 'Batas Baca'}
                     </span>
@@ -511,7 +559,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     }}
                     aria-label={`Putar audio ayat ${ayah.nomorAyat}`}
                     title="Putar Lantunan Ayat Ini"
-                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                    className={`min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${
                       isPlayingThisAyah
                         ? 'text-white bg-emerald-600 hover:bg-emerald-700'
                         : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -525,7 +573,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     onClick={() => handleBookmarkClick(ayah)}
                     aria-label={`Tandai Ayat ${ayah.nomorAyat}`}
                     title={isBookmarked ? 'Hapus dari Tersimpan' : 'Simpan Ayat & Tambah Catatan'}
-                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                    className={`min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${
                       isBookmarked
                         ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60'
                         : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -539,7 +587,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     onClick={() => handleCopyAyah(ayah)}
                     aria-label={`Salin Ayat ${ayah.nomorAyat}`}
                     title="Salin Ayat & Terjemahan"
-                    className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
+                    className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
                   >
                     {copiedAyah === ayah.nomorAyat ? (
                       <Check className="w-4 h-4 text-emerald-600" />
@@ -553,7 +601,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     onClick={() => onOpenShareModal(surah.namaLatin, surah.nomor, ayah)}
                     aria-label={`Bagikan Ayat ${ayah.nomorAyat}`}
                     title="Bagikan Kartu Ayat"
-                    className="p-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
+                    className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-2 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer transition-colors"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
@@ -563,7 +611,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     onClick={() => setSelectedTafsirAyah(ayah)}
                     aria-label={`Lihat Tafsir Ayat ${ayah.nomorAyat}`}
                     title="Lihat Tafsir Kemenag RI"
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg cursor-pointer transition-colors"
+                    className="min-h-10 sm:min-h-0 flex items-center gap-1.5 px-3 sm:px-2.5 py-1.5 sm:py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-lg cursor-pointer transition-colors whitespace-nowrap"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Tafsir</span>
@@ -587,7 +635,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                     }}
                   />
                 ) : (
-                  ayah.teksArab
+                  normalizeQuranicText(ayah.teksArab)
                 )}
                 <span className="inline-flex items-center justify-center px-2 text-base text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] select-none">
                   ﴿{ayah.nomorAyat}﴾
@@ -609,6 +657,35 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 >
                   {ayah.teksIndonesia}
                 </p>
+              )}
+
+              {/* Inline Catatan Bacaan Gharib (Musykilat Al-Qur'an) */}
+              {ayahGharibNotes.length > 0 && (
+                <div className="mt-4 space-y-2.5">
+                  {ayahGharibNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="p-3.5 sm:p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/25 [body.theme-sepia_&]:bg-[#ebdcc0]/70 border border-amber-200/80 dark:border-amber-800/60 [body.theme-sepia_&]:border-[#d6be94] space-y-1.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-300 [body.theme-sepia_&]:text-[#5c3a19]">
+                          <span>Catatan Bacaan Gharib</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{note.kategoriNama}</span>
+                        </div>
+                        <span className="font-arabic text-lg font-bold text-amber-900 dark:text-amber-200 [body.theme-sepia_&]:text-[#2c2217]">
+                          {normalizeQuranicText(note.lafazhArab)}
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 [body.theme-sepia_&]:text-[#3b2d1c]">
+                        Cara Baca: <span className="italic">{note.caraBacaLatin}</span>
+                      </p>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#473826] leading-relaxed">
+                        {note.panduanBaca}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               )}
             </article>
           );
@@ -679,10 +756,15 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
         ) : <div />}
       </div>
 
-      {/* Optional Note Modal when Bookmarking */}
+      {/* Optional Note Modal when Bookmarking (Bottom Sheet on Mobile) */}
       {noteModalAyah && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f6eee0] border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-md p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f6eee0] border border-slate-200 dark:border-slate-800 shadow-xl space-y-4">
+            <div className="sm:hidden w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-2 mb-1" />
             <h3 className="font-bold text-base text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
               Simpan Ayat ke Penanda
             </h3>
@@ -699,19 +781,19 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 value={customNote}
                 onChange={(e) => setCustomNote(e.target.value)}
                 placeholder="Contoh: Ayat favorit pengingat sabar, dibaca saat shalat tahajud..."
-                className="w-full p-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 [body.theme-sepia_&]:bg-[#ebdcc0]/60 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                className="w-full p-2.5 text-base sm:text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/80 [body.theme-sepia_&]:bg-[#ebdcc0]/60 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
                 onClick={() => setNoteModalAyah(null)}
-                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                className="min-h-11 sm:min-h-0 px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
               >
                 Batal
               </button>
               <button
                 onClick={handleSaveBookmarkWithNote}
-                className="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg cursor-pointer shadow-sm"
+                className="min-h-11 sm:min-h-0 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl cursor-pointer shadow-sm"
               >
                 Simpan Penanda
               </button>

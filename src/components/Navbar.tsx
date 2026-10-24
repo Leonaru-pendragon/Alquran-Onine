@@ -40,26 +40,26 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md border-b transition-colors duration-200 border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 [body.theme-sepia_&]:bg-[#fbf5e8]/90 [body.theme-sepia_&]:border-[#e8dec9]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-8">
+    <header className="sticky top-0 z-40 w-full pt-[env(safe-area-inset-top)] backdrop-blur-md border-b transition-colors duration-200 border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 [body.theme-sepia_&]:bg-[#fbf5e8]/90 [body.theme-sepia_&]:border-[#e8dec9]">
+      <div className="max-w-7xl mx-auto px-2.5 sm:px-5 lg:px-8 h-14 lg:h-16 flex items-center justify-between gap-1.5 sm:gap-4 lg:gap-6 xl:gap-8">
         
         {/* Zone 1: Single text wordmark (Top Bar Contract) */}
         <button
           onClick={() => setActiveTab('surah')}
-          className="text-left group cursor-pointer focus:outline-none shrink-0"
+          className="text-left group cursor-pointer focus:outline-none shrink-0 min-h-11 flex items-center"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-600 text-white font-arabic text-lg font-bold shadow-sm shadow-emerald-500/20">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center bg-emerald-600 text-white font-arabic text-base sm:text-lg font-bold shadow-sm shadow-emerald-500/20 shrink-0">
               ق
             </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] whitespace-nowrap">
+            <span className="text-[15px] sm:text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] whitespace-nowrap">
               Al-Qur'an Digital
             </span>
           </div>
         </button>
 
-        {/* Zone 2: Clean single-line navigation links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium">
+        {/* Zone 2: Clean single-line navigation links (visible on >=1024px iPad Landscape & Desktop) */}
+        <nav className="hidden lg:flex items-center gap-5 xl:gap-7 text-sm font-medium">
           <button
             onClick={() => setActiveTab('surah')}
             className={`whitespace-nowrap shrink-0 transition-colors cursor-pointer py-1 ${
@@ -101,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 [body.theme-sepia_&]:text-[#5c4a36]'
             }`}
           >
-            Panduan Tajwid
+            Tajwid & Gharib
           </button>
 
           <button
@@ -117,12 +117,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
         {/* Zone 3: Primary Action & Preferences */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-0.5 sm:gap-1.5 lg:gap-2 shrink-0">
           <button
             onClick={onOpenVoiceSearch}
             aria-label="Pencarian Suara Al-Qur'an"
             title="Pencarian Suara Al-Qur'an (Web Speech API)"
-            className="p-2 text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 [body.theme-sepia_&]:text-amber-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer relative group"
+            className="min-w-10 min-h-11 sm:min-w-11 lg:min-w-0 lg:min-h-0 p-2 flex items-center justify-center text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 [body.theme-sepia_&]:text-amber-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors cursor-pointer relative group"
           >
             <Mic className="w-4 h-4" />
             <span className="sr-only">Pencarian Suara</span>
@@ -131,8 +131,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onQuickSearch}
             aria-label="Cari Cepat"
-            title="Pencarian Ayat & Hadits"
-            className="p-2 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 [body.theme-sepia_&]:text-[#6e5840] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Pencarian Ayat, Gharib & Hadits"
+            className="min-w-10 min-h-11 sm:min-w-11 lg:min-w-0 lg:min-h-0 p-2 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100 [body.theme-sepia_&]:text-[#6e5840] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <Search className="w-4 h-4" />
           </button>
@@ -141,10 +141,10 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={toggleTheme}
             aria-label={`Ganti Tema: ${getThemeTitle()}`}
             title={`Ganti Tema: ${getThemeTitle()}`}
-            className="p-2 text-slate-600 dark:text-slate-300 [body.theme-sepia_&]:text-[#54412c] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1.5"
+            className="min-w-10 min-h-11 sm:min-w-11 lg:min-w-0 lg:min-h-0 p-2 text-slate-600 dark:text-slate-300 [body.theme-sepia_&]:text-[#54412c] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
           >
             {getThemeIcon()}
-            <span className="hidden sm:inline text-xs font-medium">
+            <span className="hidden sm:inline text-xs font-medium whitespace-nowrap">
               {theme === 'dark' ? 'Malam' : theme === 'sepia' ? 'Sepia' : 'Terang'}
             </span>
           </button>
@@ -153,67 +153,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onOpenSettings}
             aria-label="Pengaturan Tampilan dan Font"
             title="Pengaturan Aksesibilitas & Ukuran Teks"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm shadow-emerald-600/20"
+            className="min-w-10 min-h-11 sm:min-w-11 lg:min-w-0 lg:min-h-0 flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer shadow-sm shadow-emerald-600/20 whitespace-nowrap"
           >
-            <Settings2 className="w-3.5 h-3.5" />
+            <Settings2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
             <span className="hidden sm:inline">Pengaturan</span>
           </button>
         </div>
 
-      </div>
-
-      {/* Mobile Navigation Strip */}
-      <div className="md:hidden flex items-center justify-around px-2 py-2 border-t border-slate-200/60 dark:border-slate-800/60 [body.theme-sepia_&]:border-[#e8dec9]/60 text-xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('surah')}
-          className={`px-2.5 py-1 rounded-md cursor-pointer whitespace-nowrap ${
-            activeTab === 'surah'
-              ? 'text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
-              : 'text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          Surah
-        </button>
-        <button
-          onClick={() => setActiveTab('reader')}
-          className={`px-2.5 py-1 rounded-md cursor-pointer whitespace-nowrap ${
-            activeTab === 'reader'
-              ? 'text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
-              : 'text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          Baca
-        </button>
-        <button
-          onClick={() => setActiveTab('hadith')}
-          className={`px-2.5 py-1 rounded-md cursor-pointer whitespace-nowrap ${
-            activeTab === 'hadith'
-              ? 'text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
-              : 'text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          Hadits
-        </button>
-        <button
-          onClick={() => setActiveTab('tajwid')}
-          className={`px-2.5 py-1 rounded-md cursor-pointer whitespace-nowrap ${
-            activeTab === 'tajwid'
-              ? 'text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
-              : 'text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          Tajwid
-        </button>
-        <button
-          onClick={() => setActiveTab('saved')}
-          className={`px-2.5 py-1 rounded-md cursor-pointer whitespace-nowrap ${
-            activeTab === 'saved'
-              ? 'text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40'
-              : 'text-slate-600 dark:text-slate-400'
-          }`}
-        >
-          Tersimpan
-        </button>
       </div>
     </header>
   );

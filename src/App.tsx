@@ -10,9 +10,13 @@ import { SettingsModal } from './components/SettingsModal';
 import { ShareAyahModal } from './components/ShareAyahModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { VoiceSearchModal } from './components/VoiceSearchModal';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme } from './types/quran';
 import { toggleBookmarkItem } from './utils/quranLogic';
 import { VoiceSearchResult } from './utils/voiceCommandParser';
+import { getThemeStatusBarColor } from './utils/mobilePlatform';
+import { useScreenWakeLock } from './hooks/useScreenWakeLock';
 import { SURAH_METADATA_LIST } from './data/quranMetadata';
 import {
   getAyahAudioUrl,
@@ -28,6 +32,7 @@ const HISTORY_STORAGE_KEY = 'quran_history_v1';
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<'surah' | 'reader' | 'hadith' | 'tajwid' | 'saved'>('surah');
+  const [tajwidSection, setTajwidSection] = useState<'tajwid' | 'gharib' | 'quiz'>('tajwid');
   const [currentSurahNomor, setCurrentSurahNomor] = useState<number>(1);
   const [initialAyahNomor, setInitialAyahNomor] = useState<number>(1);
 
@@ -45,9 +50,11 @@ export default function App() {
       translationFontSize: 15,
       arabicFontFamily: 'amiri',
       showTajwid: true,
+      showGharib: true,
       showTranslation: true,
       showLatin: true,
-      autoScrollAudio: true
+      autoScrollAudio: true,
+      keepScreenAwake: true
     };
   });
 
@@ -141,7 +148,19 @@ export default function App() {
     } else {
       body.classList.add('theme-light');
     }
+
+    // Dynamically sync Android Chrome & iOS Safari system status bar color
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) {
+      themeMeta.setAttribute('content', getThemeStatusBarColor(settings.theme));
+    }
   }, [settings]);
+
+  // Keep Android & iOS screen awake during Tilawah or active Murottal audio playback
+  useScreenWakeLock(
+    (activeTab === 'reader' || Boolean(currentPlayingAudio?.isPlaying)) &&
+      settings.keepScreenAwake !== false
+  );
 
   // Persist bookmarks
   useEffect(() => {
@@ -418,13 +437,21 @@ export default function App() {
       />
 
       {/* Main Page Views */}
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-28 md:pb-32 lg:pb-24">
         {activeTab === 'surah' && (
           <SurahListView
             onSelectSurah={handleSelectSurah}
             lastRead={lastRead}
             onNavigateToHadith={() => setActiveTab('hadith')}
-            onNavigateToTajwid={() => setActiveTab('tajwid')}
+            onNavigateToTajwid={() => {
+              setTajwidSection('tajwid');
+              setActiveTab('tajwid');
+            }}
+            onNavigateToGharib={() => {
+              setTajwidSection('gharib');
+              setActiveTab('tajwid');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
             onNavigateToProgress={() => setActiveTab('saved')}
             onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
             externalSearchQuery={surahListFilter.query}
@@ -441,6 +468,7 @@ export default function App() {
             onUpdateSettings={updateSettings}
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
+            readingHistory={readingHistory}
             onUpdateHistory={handleUpdateHistory}
             currentPlayingAudio={currentPlayingAudio}
             onPlayAyahAudio={handlePlayAyahAudio}
@@ -456,7 +484,13 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'tajwid' && <TajwidGuideView />}
+        {activeTab === 'tajwid' && (
+          <TajwidGuideView
+            initialSection={tajwidSection}
+            onSelectSurah={handleSelectSurah}
+            onPlayAyahAudio={handlePlayAyahAudio}
+          />
+        )}
 
         {activeTab === 'saved' && (
           <SavedAndHistoryView
@@ -518,13 +552,19 @@ export default function App() {
         ayah={shareModalState.ayah}
       />
 
+      {/* Offline Connectivity Banner */}
+      <OfflineIndicator />
+
+      {/* Mobile Bottom Thumb-Zone Navigation */}
+      <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+
       {/* Minimalist Footer */}
-      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] py-6 text-center text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] py-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-6 text-center text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             Al-Qur'an Digital & Ensiklopedia Hadits · Terjemahan Resmi Kemenag RI & Murottal Syaikh Misyari Rasyid Al-Afasy
           </p>
-          <div className="flex items-center gap-4 text-xs font-medium">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-medium">
             <button onClick={() => setActiveTab('surah')} className="hover:underline cursor-pointer">
               114 Surah
             </button>
@@ -533,8 +573,15 @@ export default function App() {
               9 Kitab Hadits
             </button>
             <span aria-hidden="true">·</span>
-            <button onClick={() => setActiveTab('tajwid')} className="hover:underline cursor-pointer">
-              Kaidah Tajwid
+            <button
+              onClick={() => {
+                setTajwidSection('gharib');
+                setActiveTab('tajwid');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:underline cursor-pointer"
+            >
+              Tajwid & Gharib
             </button>
           </div>
         </div>

@@ -77,6 +77,9 @@ function playVoiceTone(type: 'start' | 'stop') {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.12);
     }
+    osc.onended = () => {
+      void ctx.close().catch(() => {});
+    };
   } catch {
     // Ignore audio context autoplay policy restrictions
   }
@@ -103,6 +106,7 @@ export function useVoiceRecognition(onFinalResult?: (transcript: string) => void
   }, []);
 
   const stopListening = useCallback(() => {
+    const wasActive = Boolean(activeRecognitionRef.current);
     if (activeRecognitionRef.current) {
       try {
         activeRecognitionRef.current.stop();
@@ -112,7 +116,9 @@ export function useVoiceRecognition(onFinalResult?: (transcript: string) => void
       activeRecognitionRef.current = null;
     }
     setIsListening(false);
-    playVoiceTone('stop');
+    if (wasActive) {
+      playVoiceTone('stop');
+    }
   }, []);
 
   const startListening = useCallback(() => {

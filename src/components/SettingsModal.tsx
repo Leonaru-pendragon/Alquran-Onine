@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Sun, Moon, Coffee, Type, Sparkles, Check } from 'lucide-react';
-import { ReadingSettings, ReadingTheme } from '../types/quran';
+import { X, Sun, Moon, Coffee } from 'lucide-react';
+import { ReadingSettings } from '../types/quran';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -18,27 +19,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-      <div className="w-full max-w-lg p-6 sm:p-7 rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
-        
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-modal-title"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
+    >
+      <div className="w-full max-w-xl p-5 sm:p-7 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-7 rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl space-y-5 max-h-[88dvh] sm:max-h-[90vh] overflow-y-auto overscroll-contain">
+        <div className="sm:hidden w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-1 mb-1" />
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div>
-            <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
+            <h3 id="settings-modal-title" className="font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
               Pengaturan Membaca & Aksesibilitas
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Sesuaikan kenyamanan mata, ukuran teks, dan gaya tulisan
+              Sesuaikan kenyamanan mata, ukuran teks, HP, Tablet & iPad
             </p>
           </div>
           <button
             onClick={onClose}
             aria-label="Tutup Pengaturan"
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            className="min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* PWA Android & iOS Installation */}
+        <PWAInstallButton variant="settings" />
 
         {/* Section 1: Tema Tampilan (Mode Gelap / Sepia / Terang) */}
         <div className="space-y-2.5">
@@ -175,7 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Section 5: Toggles */}
         <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <label className="flex items-center justify-between cursor-pointer">
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
               <span className="font-semibold text-slate-900 dark:text-slate-100 block">Warna Tajwid Interaktif</span>
               <span className="text-slate-500 dark:text-slate-400">Tampilkan hukum tajwid berwarna pada naskah ayat</span>
@@ -184,11 +194,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="checkbox"
               checked={settings.showTajwid}
               onChange={(e) => onUpdateSettings({ showTajwid: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
             />
           </label>
 
-          <label className="flex items-center justify-between cursor-pointer">
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Catatan Bacaan Gharib (Musykilat)</span>
+              <span className="text-slate-500 dark:text-slate-400">Tampilkan panduan Imalah, Isymam, Tashil, Naql & Saktah langsung di bawah ayat</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.showGharib !== false}
+              onChange={(e) => onUpdateSettings({ showGharib: e.target.checked })}
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
               <span className="font-semibold text-slate-900 dark:text-slate-100 block">Tampilkan Tulisan Latin</span>
               <span className="text-slate-500 dark:text-slate-400">Transliterasi memudahkan pembaca pemula</span>
@@ -197,11 +220,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="checkbox"
               checked={settings.showLatin}
               onChange={(e) => onUpdateSettings({ showLatin: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
             />
           </label>
 
-          <label className="flex items-center justify-between cursor-pointer">
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
               <span className="font-semibold text-slate-900 dark:text-slate-100 block">Tampilkan Terjemahan Kemenag RI</span>
               <span className="text-slate-500 dark:text-slate-400">Arti bahasa Indonesia setiap ayat</span>
@@ -210,11 +233,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="checkbox"
               checked={settings.showTranslation}
               onChange={(e) => onUpdateSettings({ showTranslation: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
             />
           </label>
 
-          <label className="flex items-center justify-between cursor-pointer">
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
               <span className="font-semibold text-slate-900 dark:text-slate-100 block">Auto-scroll Audio</span>
               <span className="text-slate-500 dark:text-slate-400">Gulir otomatis ke ayat yang sedang dilantunkan murottal</span>
@@ -223,7 +246,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               type="checkbox"
               checked={settings.autoScrollAudio}
               onChange={(e) => onUpdateSettings({ autoScrollAudio: e.target.checked })}
-              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
+            />
+          </label>
+
+          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
+            <div className="text-xs">
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Layar Tetap Menyala Saat Tilawah</span>
+              <span className="text-slate-500 dark:text-slate-400">Cegah layar HP, Tablet Android & iPad meredup saat membaca atau memutar audio</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={settings.keepScreenAwake !== false}
+              onChange={(e) => onUpdateSettings({ keepScreenAwake: e.target.checked })}
+              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
             />
           </label>
         </div>
@@ -232,7 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="pt-2">
           <button
             onClick={onClose}
-            className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer shadow-sm"
+            className="w-full min-h-11 py-2.5 px-4 text-xs sm:text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-colors cursor-pointer shadow-sm"
           >
             Selesai & Terapkan
           </button>

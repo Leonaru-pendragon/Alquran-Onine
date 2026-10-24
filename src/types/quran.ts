@@ -192,9 +192,11 @@ export interface ReadingSettings {
   translationFontSize: number;
   arabicFontFamily: 'amiri' | 'scheherazade';
   showTajwid: boolean;
+  showGharib?: boolean;
   showTranslation: boolean;
   showLatin: boolean;
   autoScrollAudio: boolean;
+  keepScreenAwake?: boolean;
 }
 
 export interface JuzMeta {

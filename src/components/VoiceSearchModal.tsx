@@ -99,12 +99,13 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="voice-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs"
     >
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] rounded-3xl border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] rounded-t-3xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] shadow-2xl pb-[env(safe-area-inset-bottom)]">
+        <div className="sm:hidden w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5" />
         
         {/* Top Header */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#ebdcc0] flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#ebdcc0] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 [body.theme-sepia_&]:bg-[#ebdcc0] flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <Mic className="w-4 h-4" />
@@ -124,7 +125,7 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({
               onClose();
             }}
             aria-label="Tutup Pencarian Suara"
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer transition-colors"
+            className="min-w-11 min-h-11 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg cursor-pointer transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -332,14 +333,14 @@ export const VoiceSearchModal: React.FC<VoiceSearchModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-900/80 [body.theme-sepia_&]:bg-[#ebdcc0]/50 border-t border-slate-100 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] flex items-center justify-between">
           <p className="text-[11px] text-slate-400 dark:text-slate-500">
-            Tekan Esc atau tombol silang untuk keluar
+            Ketuk tombol silang atau Tutup untuk keluar
           </p>
           <button
             onClick={() => {
               stopListening();
               onClose();
             }}
-            className="px-4 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+            className="min-h-10 sm:min-h-0 px-4 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
           >
             Tutup
           </button>

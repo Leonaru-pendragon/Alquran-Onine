@@ -95,16 +95,22 @@ export const TAJWID_RULES: TajwidRule[] = [
 ];
 
 /**
+ * Attaches Quranic combining waqf/saktah marks (e.g. U+06DA ۚ, U+06DC ۜ) preceded by ASCII space
+ * directly to the preceding Arabic glyph so HarfBuzz never renders a .notdef box on U+0020.
+ */
+export function normalizeQuranicText(text: string): string {
+  return text.replace(
+    /\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,
+    '$1'
+  );
+}
+
+/**
  * Intelligent helper to colorize Arabic Quran text according to Tajwid rules.
  * Uses Quranic orthography patterns (tanwin, nun sukun, tasydid, mad signs, qalqalah sukun).
  */
 export function renderTajwidHtml(arabicText: string, showTajwid: boolean = true): string {
-  // Attach Quranic combining waqf/saktah marks (e.g. U+06DC ۜ) preceded by ASCII space
-  // to the preceding Arabic glyph so HarfBuzz never renders a .notdef box on U+0020.
-  const normalized = arabicText.replace(
-    /\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,
-    '$1'
-  );
+  const normalized = normalizeQuranicText(arabicText);
   if (!showTajwid) return normalized;
 
   let text = normalized;
