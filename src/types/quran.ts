@@ -106,23 +106,72 @@ export interface BookmarkItem {
   timestamp: number;
 }
 
+export type AyahRange = [number, number];
+
 export interface ReadingHistoryItem {
   surahNomor: number;
   surahNamaLatin: string;
   ayatNomor: number;
+  highestAyatRead?: number;
+  readRanges?: AyahRange[];
   totalAyat: number;
   timestamp: number;
+}
+
+export type CompletionStatus = 'completed' | 'in_progress' | 'unread';
+
+export interface JuzProgressItem {
+  nomor: number;
+  namaMulai: string;
+  surahMulai: number;
+  ayatMulai: number;
+  surahSelesai: number;
+  ayatSelesai: number;
+  surahMulaiNama: string;
+  surahSelesaiNama: string;
+  readAyahs: number;
+  totalAyahs: number;
+  percent: number;
+  status: CompletionStatus;
+  nextUnreadSurah: number;
+  nextUnreadAyah: number;
+}
+
+export interface SurahProgressItem {
+  nomor: number;
+  nama: string;
+  namaLatin: string;
+  arti: string;
+  tempatTurun: RevelationType;
+  readAyahs: number;
+  lastVisitedAyah: number;
+  totalAyahs: number;
+  percent: number;
+  status: CompletionStatus;
+  lastTimestamp?: number;
+  nextUnreadAyah: number;
 }
 
 export interface QuranProgressStats {
   totalAyahsRead: number;
   totalQuranAyahs: number;
+  remainingAyahs: number;
   percentageOverall: number;
   surahsExploredCount: number;
   surahsCompletedCount: number;
+  juzCompletedCount: number;
+  juzInProgressCount: number;
   estimatedJuzProgress: number;
+  currentStreakDays: number;
   makkiyyahAyahs: number;
   madaniyyahAyahs: number;
+  nextRecommendedRead: {
+    surahNomor: number;
+    surahNamaLatin: string;
+    ayahNomor: number;
+  };
+  juzProgressList: JuzProgressItem[];
+  surahProgressList: SurahProgressItem[];
   juzBreakdown: Array<{
     name: string;
     completed: number;

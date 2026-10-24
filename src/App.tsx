@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { SurahListView } from './components/SurahListView';
 import { SurahReaderView } from './components/SurahReaderView';
@@ -14,7 +14,12 @@ import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme }
 import { toggleBookmarkItem } from './utils/quranLogic';
 import { VoiceSearchResult } from './utils/voiceCommandParser';
 import { SURAH_METADATA_LIST } from './data/quranMetadata';
-import { getAyahAudioUrl, getSurahFullAudioUrl } from './services/quranApi';
+import {
+  getAyahAudioUrl,
+  getSurahFullAudioUrl,
+  fetchUserStateFromBackend,
+  syncUserStateToBackend
+} from './services/quranApi';
 
 const SETTINGS_STORAGE_KEY = 'quran_settings_v1';
 const BOOKMARKS_STORAGE_KEY = 'quran_bookmarks_v1';
@@ -156,6 +161,42 @@ export default function App() {
     }
   }, [readingHistory]);
 
+  // Hydrate & sync user state with Express backend when running in full-stack mode
+  const backendHydratedRef = useRef(false);
+  useEffect(() => {
+    let active = true;
+    fetchUserStateFromBackend()
+      .then((serverState) => {
+        if (!active) return;
+        if (serverState) {
+          if (Array.isArray(serverState.bookmarks) && !localStorage.getItem(BOOKMARKS_STORAGE_KEY)) {
+            setBookmarks(serverState.bookmarks as BookmarkItem[]);
+          }
+          if (Array.isArray(serverState.readingHistory) && !localStorage.getItem(HISTORY_STORAGE_KEY)) {
+            setReadingHistory(serverState.readingHistory as ReadingHistoryItem[]);
+          }
+          if (serverState.settings && !localStorage.getItem(SETTINGS_STORAGE_KEY)) {
+            setSettings((prev) => ({ ...prev, ...(serverState.settings as Partial<ReadingSettings>) }));
+          }
+        }
+        backendHydratedRef.current = true;
+      })
+      .catch(() => {
+        backendHydratedRef.current = true;
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!backendHydratedRef.current) return;
+    const timer = setTimeout(() => {
+      void syncUserStateToBackend({ bookmarks, readingHistory, settings });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [bookmarks, readingHistory, settings]);
+
   const updateSettings = (newSettings: Partial<ReadingSettings>) => {
     setSettings((prev) => ({ ...prev, ...newSettings }));
   };
@@ -220,9 +261,7 @@ export default function App() {
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Yakin ingin menghapus seluruh riwayat bacaan?')) {
-      setReadingHistory([]);
-    }
+    setReadingHistory([]);
   };
 
   // Audio Playback Handlers

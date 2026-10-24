@@ -15,7 +15,28 @@
   </head>
   <body class="bg-slate-50 text-slate-800 antialiased selection:bg-emerald-500/20 selection:text-emerald-900">
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      window.__bootGhPagesFallback = function () {
+        if (window.__GH_FALLBACK_LOADED__) return;
+        window.__GH_FALLBACK_LOADED__ = true;
+        var css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = './gh-pages-app/app.css';
+        document.head.appendChild(css);
+        var js = document.createElement('script');
+        js.type = 'module';
+        js.src = './gh-pages-app/app.js';
+        document.body.appendChild(js);
+      };
+    </script>
+    <script type="module" src="/src/main.tsx" onerror="window.__bootGhPagesFallback()"></script>
+    <script>
+      if (
+        !document.querySelector('script[src*="@vite/client"]') &&
+        document.querySelector('script[src*="/src/main.tsx"]')
+      ) {
+        window.__bootGhPagesFallback();
+      }
+    </script>
   </body>
 </html>
-

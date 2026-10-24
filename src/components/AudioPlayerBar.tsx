@@ -12,7 +12,8 @@ import {
   Gauge
 } from 'lucide-react';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
-import { getAyahFallbackAudioUrl } from '../services/quranApi';
+import { getAyahAudioUrl, getAyahFallbackAudioUrl, getSurahFullAudioUrl } from '../services/quranApi';
+import { sanitizeAudioUrl } from '../utils/security';
 
 export interface PlayingAudioState {
   surahNomor: number;
@@ -63,15 +64,20 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
     const audio = audioRef.current;
 
+    const defaultTrustedUrl = currentPlaying.isFullSurah
+      ? getSurahFullAudioUrl(currentPlaying.surahNomor)
+      : getAyahAudioUrl(currentPlaying.surahNomor, currentPlaying.ayahNomor);
+    const safeUrl = sanitizeAudioUrl(currentPlaying.audioUrl, defaultTrustedUrl);
+
     // Load new audio source only when URL changes
-    if (currentPlaying.audioUrl && lastLoadedUrlRef.current !== currentPlaying.audioUrl) {
-      lastLoadedUrlRef.current = currentPlaying.audioUrl;
+    if (safeUrl && lastLoadedUrlRef.current !== safeUrl) {
+      lastLoadedUrlRef.current = safeUrl;
       fallbackAttemptedRef.current = false;
       setIsLoading(true);
       setCurrentTime(0);
       setDuration(0);
 
-      audio.src = currentPlaying.audioUrl;
+      audio.src = safeUrl;
       audio.playbackRate = PLAYBACK_SPEEDS[speedIndex];
       audio.load();
 
@@ -140,11 +146,14 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
       if (currentPlaying && !fallbackAttemptedRef.current && !currentPlaying.isFullSurah) {
         fallbackAttemptedRef.current = true;
         const fallbackUrl = getAyahFallbackAudioUrl(currentPlaying.surahNomor, currentPlaying.ayahNomor);
-        console.info('Switching to secondary fallback audio source:', fallbackUrl);
-        audio.src = fallbackUrl;
-        audio.load();
-        if (currentPlaying.isPlaying) {
-          audio.play().catch(() => {});
+        const safeFallback = sanitizeAudioUrl(fallbackUrl, fallbackUrl);
+        if (safeFallback) {
+          console.info('Switching to secondary fallback audio source:', safeFallback);
+          audio.src = safeFallback;
+          audio.load();
+          if (currentPlaying.isPlaying) {
+            audio.play().catch(() => {});
+          }
         }
       }
     };

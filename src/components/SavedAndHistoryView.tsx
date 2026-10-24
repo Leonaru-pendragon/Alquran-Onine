@@ -29,6 +29,8 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<'all' | 'ayah' | 'hadith'>('all');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+  const [confirmClearHistory, setConfirmClearHistory] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const filteredBookmarks = bookmarks.filter((b) => {
     if (bookmarkTypeFilter === 'all') return true;
@@ -58,15 +60,18 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImportError(null);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
           onImportBookmarks(parsed);
+        } else {
+          setImportError('Format file JSON tidak sesuai struktur penanda.');
         }
-      } catch (err) {
-        alert('Format file JSON tidak valid.');
+      } catch {
+        setImportError('Format file JSON tidak valid.');
       }
     };
     reader.readAsText(file);
@@ -88,6 +93,15 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
           Visualisasi pencapaian khatam 30 Juz dengan diagram interaktif Recharts, kelola penanda ayat serta hadits favorit, dan lanjutkan tilawah secara otomatis.
         </p>
       </div>
+
+      {importError && (
+        <div role="alert" className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center justify-between">
+          <span>{importError}</span>
+          <button onClick={() => setImportError(null)} aria-label="Tutup pesan kesalahan" className="p-1 cursor-pointer">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Tabs (Segmented Control) */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] pb-3">
@@ -152,13 +166,34 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
         )}
 
         {activeTab === 'history' && readingHistory.length > 0 && (
-          <button
-            onClick={onClearHistory}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer self-start sm:self-auto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Hapus Semua Riwayat</span>
-          </button>
+          confirmClearHistory ? (
+            <div className="flex items-center gap-2 text-xs self-start sm:self-auto">
+              <span className="text-slate-600 dark:text-slate-300 font-medium">Hapus semua riwayat?</span>
+              <button
+                onClick={() => {
+                  onClearHistory();
+                  setConfirmClearHistory(false);
+                }}
+                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold cursor-pointer"
+              >
+                Ya, Hapus
+              </button>
+              <button
+                onClick={() => setConfirmClearHistory(false)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmClearHistory(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg cursor-pointer self-start sm:self-auto"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Hapus Semua Riwayat</span>
+            </button>
+          )
         )}
       </div>
 

@@ -8,10 +8,9 @@ import {
   Share2,
   Copy,
   Check,
-  Type,
+  CheckCircle2,
   Volume2,
   Info,
-  Sliders,
   Sparkles,
   ArrowUp,
   BookOpen
@@ -20,7 +19,12 @@ import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } 
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
 import { renderTajwidHtml } from '../data/tajwidRules';
-import { isAyahBookmarked } from '../utils/quranLogic';
+import {
+  isAyahBookmarked,
+  countAyahsInRanges,
+  extractItemRanges,
+  normalizeAyahRanges
+} from '../utils/quranLogic';
 import { TafsirModal } from './TafsirModal';
 
 interface SurahReaderViewProps {
@@ -31,6 +35,7 @@ interface SurahReaderViewProps {
   onUpdateSettings: (newSettings: Partial<ReadingSettings>) => void;
   bookmarks: BookmarkItem[];
   onToggleBookmark: (item: Omit<BookmarkItem, 'id' | 'timestamp'>) => void;
+  readingHistory?: ReadingHistoryItem[];
   onUpdateHistory: (item: ReadingHistoryItem) => void;
   currentPlayingAudio: { surahNomor: number; ayahNomor: number; isPlaying: boolean; isFullSurah?: boolean } | null;
   onPlayAyahAudio: (surahNomor: number, ayahNomor: number, audioUrl: string) => void;
@@ -46,6 +51,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   onUpdateSettings,
   bookmarks,
   onToggleBookmark,
+  readingHistory = [],
   onUpdateHistory,
   currentPlayingAudio,
   onPlayAyahAudio,
@@ -56,6 +62,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedAyah, setCopiedAyah] = useState<number | null>(null);
+  const [markedReadFeedbackAyah, setMarkedReadFeedbackAyah] = useState<number | null>(null);
   const [showTafsirInfo, setShowTafsirInfo] = useState(false);
   const [noteModalAyah, setNoteModalAyah] = useState<Ayah | null>(null);
   const [customNote, setCustomNote] = useState('');
@@ -169,6 +176,36 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
     });
     setNoteModalAyah(null);
   };
+
+  const handleMarkReadUpToAyah = (ayahNomor: number) => {
+    if (!surah) return;
+    onUpdateHistory({
+      surahNomor: surah.nomor,
+      surahNamaLatin: surah.namaLatin,
+      ayatNomor: ayahNomor,
+      highestAyatRead: ayahNomor,
+      readRanges: [[1, ayahNomor]],
+      totalAyat: surah.jumlahAyat,
+      timestamp: Date.now()
+    });
+    setMarkedReadFeedbackAyah(ayahNomor);
+    setTimeout(() => {
+      setMarkedReadFeedbackAyah((prev) => (prev === ayahNomor ? null : prev));
+    }, 2200);
+  };
+
+  const surahHistoryItems = readingHistory.filter((h) => h.surahNomor === currentSurahNomor);
+  const currentSurahRanges = surah
+    ? normalizeAyahRanges(
+        surahHistoryItems.flatMap((h) => extractItemRanges(h, surah.jumlahAyat)),
+        surah.jumlahAyat
+      )
+    : [];
+  const currentSurahReadCount = surah
+    ? countAyahsInRanges(currentSurahRanges, [1, surah.jumlahAyat])
+    : 0;
+  const currentSurahLastVisited = surahHistoryItems[0]?.ayatNomor ?? 1;
+  const isCurrentSurahCompleted = surah ? currentSurahReadCount >= surah.jumlahAyat : false;
 
   const prevSurahNomor = currentSurahNomor > 1 ? currentSurahNomor - 1 : null;
   const nextSurahNomor = currentSurahNomor < 114 ? currentSurahNomor + 1 : null;
@@ -429,21 +466,43 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               <div className="flex items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800/60 [body.theme-sepia_&]:border-[#e8dec9]/80">
                 
                 {/* Ayah Index Frame */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs tabular-nums bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:bg-[#ebdcc0] [body.theme-sepia_&]:text-[#2c2217]">
                     {surah.nomor}:{ayah.nomorAyat}
                   </div>
-                  {isPlayingThisAyah && (
-                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 animate-pulse">
+                  {isPlayingThisAyah ? (
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                       <Volume2 className="w-3.5 h-3.5" />
                       <span>Memutar Audio</span>
                     </span>
-                  )}
+                  ) : currentSurahLastVisited === ayah.nomorAyat ? (
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                      Batas baca terakhir
+                    </span>
+                  ) : null}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap justify-end">
                   
+                  {/* Mark Read Progress Up To This Ayah */}
+                  <button
+                    type="button"
+                    onClick={() => handleMarkReadUpToAyah(ayah.nomorAyat)}
+                    aria-label={`Tandai batas baca sampai ayat ${ayah.nomorAyat}`}
+                    title="Tandai batas bacaan Khatam sampai ayat ini"
+                    className={`px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors inline-flex items-center gap-1 whitespace-nowrap ${
+                      markedReadFeedbackAyah === ayah.nomorAyat || currentSurahLastVisited === ayah.nomorAyat
+                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">
+                      {markedReadFeedbackAyah === ayah.nomorAyat ? 'Tercatat' : 'Batas Baca'}
+                    </span>
+                  </button>
+
                   {/* Play audio button */}
                   <button
                     onClick={() => {
@@ -554,6 +613,39 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             </article>
           );
         })}
+      </div>
+
+      {/* End-of-Surah Khatam Completion Strip */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900/70 [body.theme-sepia_&]:bg-[#f6eee0] border border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="text-sm font-bold text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
+            {isCurrentSurahCompleted
+              ? `Alhamdulillah, Surah ${surah.namaLatin} Tercatat Tuntas`
+              : `Selesai Membaca Surah ${surah.namaLatin}?`}
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono tabular-nums">
+            Progres Khatam surah ini: {currentSurahReadCount} / {surah.jumlahAyat} ayat (
+            {Math.round((currentSurahReadCount / surah.jumlahAyat) * 100)}%)
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => handleMarkReadUpToAyah(surah.jumlahAyat)}
+          disabled={isCurrentSurahCompleted}
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold inline-flex items-center justify-center gap-2 transition-colors whitespace-nowrap shrink-0 ${
+            isCurrentSurahCompleted
+              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 cursor-default'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          <span>
+            {isCurrentSurahCompleted
+              ? 'Surah Selesai Dibaca (100%)'
+              : 'Tandai Surah Selesai Dibaca'}
+          </span>
+        </button>
       </div>
 
       {/* Surah Bottom Pagination */}

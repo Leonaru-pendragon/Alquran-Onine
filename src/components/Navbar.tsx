@@ -212,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               : 'text-slate-600 dark:text-slate-400'
           }`}
         >
-          Riwayat
+          Tersimpan
         </button>
       </div>
     </header>

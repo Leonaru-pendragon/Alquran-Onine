@@ -51,6 +51,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
           <input
             autoFocus
             type="text"
+            maxLength={150}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ketik nama surah, nomor (mis. 18, Yasin, Al-Mulk), atau hadits (mis. niat, ilmu, sabar)..."

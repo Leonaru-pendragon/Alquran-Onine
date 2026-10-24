@@ -27,6 +27,80 @@ export function getSurahFullAudioUrl(surahNomor: number): string {
   return `https://cdn.equran.id/audio-full/Misyari-Rasyid-Al-Afasi/${s}.mp3`;
 }
 
+export function detectStaticHost(hostname: string, fallbackLoaded = false): boolean {
+  const host = hostname.trim().toLowerCase();
+  if (
+    host.endsWith('.github.io') ||
+    host.endsWith('.pages.dev') ||
+    host.endsWith('.netlify.app') ||
+    host.endsWith('.vercel.app')
+  ) {
+    return true;
+  }
+  return Boolean(fallbackLoaded);
+}
+
+export function isStaticHostEnvironment(): boolean {
+  if (typeof window === 'undefined') return true;
+  const win = window as unknown as { __GH_FALLBACK_LOADED__?: boolean };
+  return detectStaticHost(window.location.hostname, Boolean(win.__GH_FALLBACK_LOADED__));
+}
+
+let backendAvailableCache: boolean | null = null;
+
+export async function checkBackendAvailable(): Promise<boolean> {
+  if (isStaticHostEnvironment()) return false;
+  if (backendAvailableCache !== null) return backendAvailableCache;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1500);
+    const res = await fetch('/api/health', { signal: controller.signal });
+    clearTimeout(timer);
+    const ct = res.headers.get('content-type') || '';
+    backendAvailableCache = res.ok && ct.includes('application/json');
+    return backendAvailableCache;
+  } catch {
+    backendAvailableCache = false;
+    return false;
+  }
+}
+
+export async function fetchUserStateFromBackend(): Promise<{
+  bookmarks?: unknown[];
+  readingHistory?: unknown[];
+  settings?: Record<string, unknown>;
+} | null> {
+  if (!(await checkBackendAvailable())) return null;
+  try {
+    const res = await fetch('/api/sync');
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json?.hasServerState && json?.state) {
+      return json.state;
+    }
+  } catch {
+    // ignore offline/static mode
+  }
+  return null;
+}
+
+export async function syncUserStateToBackend(payload: {
+  bookmarks: unknown[];
+  readingHistory: unknown[];
+  settings: unknown;
+}): Promise<void> {
+  if (!(await checkBackendAvailable())) return;
+  try {
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    // ignore offline/static mode
+  }
+}
+
 /**
  * Built-in bundled surahs for instant offline loading
  */
@@ -296,6 +370,27 @@ export async function fetchSurahDetail(surahNumber: number): Promise<SurahDetail
     return bundled;
   }
 
+  // 3b. Try Express Backend Server Cache (/api/surahs/:nomor) when running in full-stack mode
+  if (await checkBackendAvailable()) {
+    try {
+      const apiRes = await fetch(`/api/surahs/${surahNumber}`);
+      if (apiRes.ok && (apiRes.headers.get('content-type') || '').includes('application/json')) {
+        const detail = (await apiRes.json()) as SurahDetail;
+        if (detail && Array.isArray(detail.ayat) && detail.ayat.length > 0) {
+          surahCache.set(surahNumber, detail);
+          try {
+            localStorage.setItem(`${STORAGE_PREFIX}${surahNumber}`, JSON.stringify(detail));
+          } catch {
+            // ignore storage quota
+          }
+          return detail;
+        }
+      }
+    } catch {
+      // Fall through to direct public API
+    }
+  }
+
   // 4. Fetch from official high-availability Indonesian open API: equran.id v2
   try {
     const controller = new AbortController();
@@ -465,6 +560,27 @@ export async function fetchSurahTafsir(surahNumber: number): Promise<SurahTafsir
     }
   } catch {
     // ignore
+  }
+
+  // 2b. Try Express Backend Server Cache (/api/surahs/:nomor/tafsir) when running in full-stack mode
+  if (await checkBackendAvailable()) {
+    try {
+      const apiRes = await fetch(`/api/surahs/${surahNumber}/tafsir`);
+      if (apiRes.ok && (apiRes.headers.get('content-type') || '').includes('application/json')) {
+        const detail = (await apiRes.json()) as SurahTafsirDetail;
+        if (detail && detail.tafsir && Object.keys(detail.tafsir).length > 0) {
+          tafsirCache.set(surahNumber, detail);
+          try {
+            localStorage.setItem(`${TAFSIR_STORAGE_PREFIX}${surahNumber}`, JSON.stringify(detail));
+          } catch {
+            // ignore
+          }
+          return detail;
+        }
+      }
+    } catch {
+      // Fall through to direct public API
+    }
   }
 
   // 3. Fetch from equran.id API v2 (Official Kemenag RI Tafsir)

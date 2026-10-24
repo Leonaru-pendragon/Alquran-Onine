@@ -99,9 +99,15 @@ export const TAJWID_RULES: TajwidRule[] = [
  * Uses Quranic orthography patterns (tanwin, nun sukun, tasydid, mad signs, qalqalah sukun).
  */
 export function renderTajwidHtml(arabicText: string, showTajwid: boolean = true): string {
-  if (!showTajwid) return arabicText;
+  // Attach Quranic combining waqf/saktah marks (e.g. U+06DC ۜ) preceded by ASCII space
+  // to the preceding Arabic glyph so HarfBuzz never renders a .notdef box on U+0020.
+  const normalized = arabicText.replace(
+    /\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED])/g,
+    '$1'
+  );
+  if (!showTajwid) return normalized;
 
-  let text = arabicText;
+  let text = normalized;
 
   // 1. Mad Signs (wavy maddah ٓ or ۧ or ~)
   text = text.replace(/([^\s\u0640]{1,3}[ٓۧ~][^\s\u0640]{0,2})/g, '<span class="tajwid-mad">$1</span>');

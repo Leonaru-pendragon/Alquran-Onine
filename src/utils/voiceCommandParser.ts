@@ -1,5 +1,6 @@
 import { SURAH_METADATA_LIST, JUZ_LIST } from '../data/quranMetadata.ts';
 import type { SurahMeta } from '../types/quran.ts';
+import { sanitizeUserInput } from './security.ts';
 
 export interface VoiceSearchResult {
   rawTranscript: string;
@@ -198,7 +199,7 @@ export function parseVoiceQuranCommand(
   rawTranscript: string,
   surahList: SurahMeta[] = SURAH_METADATA_LIST
 ): VoiceSearchResult {
-  const trimmed = rawTranscript.trim();
+  const trimmed = sanitizeUserInput(rawTranscript, 200);
   if (!trimmed) {
     return {
       rawTranscript: '',

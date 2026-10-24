@@ -1,4 +1,4 @@
-import { HadithBook, HadithItem } from '../types/quran';
+import type { HadithBook, HadithItem } from '../types/quran.ts';
 
 export const HADITH_BOOKS: HadithBook[] = [
   {

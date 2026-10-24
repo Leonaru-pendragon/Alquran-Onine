@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --font-arabic: 'Amiri', 'Amiri Quran', 'Scheherazade New', serif;
+    --font-arabic: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   }
 
@@ -14,11 +14,11 @@
 }
 
 .font-arabic {
-  font-family: 'Amiri', 'Amiri Quran', 'Scheherazade New', serif;
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Amiri', serif;
 }
 
 .font-scheherazade {
-  font-family: 'Scheherazade New', 'Amiri', serif;
+  font-family: 'Scheherazade New', 'Amiri Quran', 'Amiri', serif;
 }
 
 /* Custom Reading Theme Styles */
