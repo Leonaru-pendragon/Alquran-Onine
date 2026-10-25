@@ -57,6 +57,11 @@ test('GitHub Pages fallback bundle and index.html cache-busting build hash are i
     true,
     'gh-pages-app/app.js must include Pelajaran Ilmu Tajwid Praktis title'
   );
+  assert.equal(
+    appJsContent.includes('Warna & Catatan Bacaan Gharib'),
+    false,
+    'gh-pages-app/app.js must not include removed Gharib settings toggle'
+  );
 });
 
 test('renderTajwidHtml attaches space-preceded Quranic combining waqf/saktah marks to preceding glyph', () => {

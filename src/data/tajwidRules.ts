@@ -4,7 +4,25 @@ import {
   TajwidQuizQuestion
 } from '../types/quran';
 import { escapeHtml } from '../utils/security';
-import { extractGharibPlaceholders, normalizeQuranicText } from './gharibData';
+
+/**
+ * Menormalkan spasi sebelum tanda waqaf/saktah/nun-wiqayah mushaf agar tidak merender kotak .notdef
+ * dan tetap menjaga spasi antar-kata di Mushaf Kemenag RI maupun Utsmani.
+ */
+export function normalizeQuranicText(text: string): string {
+  return (
+    text
+      .replace(/(^|\s+)\u06E8([\u064E-\u0652]?)([\u0627\u0671])/g, '$1$3\u06E8$2')
+      .replace(
+        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\S)/g,
+        '$1$2 '
+      )
+      .replace(
+        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\s|$)/g,
+        '$1$2'
+      )
+  );
+}
 
 export const TAJWID_PDF_FILENAME =
   'pdf-p-classtruncatedtext-module-lineclamped-85ulhh-style-max-lines5tajwid-praktis-p_compress_91d71235.pdf';
@@ -2172,65 +2190,27 @@ function tokenizeTajwidText(arabicText: string): {
   return { tokenizedText: text, tokens };
 }
 
-export interface RenderTajwidOptions {
-  showGharib?: boolean;
-  surahNomor?: number;
-  ayahNomor?: number;
-}
-
 /**
  * Intelligent helper to colorize Arabic Quran text according to Pelajaran 1–13
- * of Ilmu Tajwid Praktis (Qira'ati) and optional Riwayat Hafsh Gharib markers,
- * with strict XSS escaping and non-nested placeholder protection.
+ * of Ilmu Tajwid Praktis (Qira'ati) with strict XSS escaping and non-nested placeholder protection.
  */
-export function renderTajwidHtml(
-  arabicText: string,
-  showTajwid: boolean = true,
-  options?: RenderTajwidOptions
-): string {
+export function renderTajwidHtml(arabicText: string, showTajwid: boolean = true): string {
   const safeInput = escapeHtml(arabicText);
   const normalized = normalizeQuranicText(safeInput);
 
-  if (!showTajwid && !options?.showGharib) {
+  if (!showTajwid) {
     return normalized;
   }
 
-  let working = normalized;
-  let gharibTokens: ReturnType<typeof extractGharibPlaceholders>['tokens'] = [];
-
-  if (options?.showGharib) {
-    const extracted = extractGharibPlaceholders(
-      working,
-      options.surahNomor,
-      options.ayahNomor
-    );
-    gharibTokens = extracted.tokens;
-    // Remap Gharib placeholders from \uE000N\uE001 to \uE200N\uE201 so they never collide with Tajwid tokens
-    working = extracted.textWithPlaceholders.replace(/\uE000(\d+)\uE001/g, '\uE200$1\uE201');
-  }
-
-  if (showTajwid) {
-    const { tokenizedText, tokens } = tokenizeTajwidText(working);
-    working = tokenizedText.replace(/\uE000(\d+)\uE001/g, (_, idxStr: string) => {
-      const token = tokens[Number(idxStr)];
-      if (!token) return '';
-      if (token.ruleId === 'ghunnah') {
-        return `<span class="tajwid-ghunnah">${token.text}</span>`;
-      }
-      return `<span class="${token.warna}" data-tajwid="${token.ruleId}">${token.text}</span>`;
-    });
-  }
-
-  if (options?.showGharib && gharibTokens.length > 0) {
-    working = working.replace(/\uE200(\d+)\uE201/g, (_, idxStr: string) => {
-      const gtok = gharibTokens[Number(idxStr)];
-      if (!gtok) return '';
-      const safeTitle = escapeHtml(`${gtok.kategoriNama}: ${gtok.caraBacaSingkat}`);
-      return `<span class="gharib-mark ${gtok.warnaClass}" data-gharib="${gtok.kategoriId}" title="${safeTitle}">${gtok.segment}</span>`;
-    });
-  }
-
-  return working;
+  const { tokenizedText, tokens } = tokenizeTajwidText(normalized);
+  return tokenizedText.replace(/\uE000(\d+)\uE001/g, (_, idxStr: string) => {
+    const token = tokens[Number(idxStr)];
+    if (!token) return '';
+    if (token.ruleId === 'ghunnah') {
+      return `<span class="tajwid-ghunnah">${token.text}</span>`;
+    }
+    return `<span class="${token.warna}" data-tajwid="${token.ruleId}">${token.text}</span>`;
+  });
 }
 
 /**

@@ -201,19 +201,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
-              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Warna & Catatan Bacaan Gharib</span>
-              <span className="text-slate-500 dark:text-slate-400">Beri warna khusus pada lafazh Gharib di setiap surah beserta panduan cara bacanya</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={settings.showGharib !== false}
-              onChange={(e) => onUpdateSettings({ showGharib: e.target.checked })}
-              className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer shrink-0"
-            />
-          </label>
-
-          <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
-            <div className="text-xs">
               <span className="font-semibold text-slate-900 dark:text-slate-100 block">Tampilkan Tulisan Latin</span>
               <span className="text-slate-500 dark:text-slate-400">Transliterasi memudahkan pembaca pemula</span>
             </div>

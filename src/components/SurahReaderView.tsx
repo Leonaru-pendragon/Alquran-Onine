@@ -22,7 +22,12 @@ import {
 import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
-import { TAJWID_RULES, renderTajwidHtml, getTajwidRuleById } from '../data/tajwidRules';
+import {
+  TAJWID_RULES,
+  renderTajwidHtml,
+  getTajwidRuleById,
+  normalizeQuranicText
+} from '../data/tajwidRules';
 import {
   isAyahBookmarked,
   countAyahsInRanges,
@@ -774,18 +779,14 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 } text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]`}
                 style={{ fontSize: `${settings.arabicFontSize}px` }}
               >
-                {settings.showTajwid || settings.showGharib !== false ? (
+                {settings.showTajwid ? (
                   <span
                     dangerouslySetInnerHTML={{
-                      __html: renderTajwidHtml(ayah.teksArab, settings.showTajwid, {
-                        showGharib: settings.showGharib !== false,
-                        surahNomor: surah.nomor,
-                        ayahNomor: ayah.nomorAyat
-                      })
+                      __html: renderTajwidHtml(ayah.teksArab, true)
                     }}
                   />
                 ) : (
-                  ayah.teksArab
+                  normalizeQuranicText(ayah.teksArab)
                 )}
                 <span className="inline-flex items-center justify-center px-2 text-base text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] select-none">
                   ﴿{ayah.nomorAyat}﴾

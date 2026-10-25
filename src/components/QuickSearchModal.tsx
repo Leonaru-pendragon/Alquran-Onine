@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, X, ChevronRight, Mic } from 'lucide-react';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { COMPREHENSIVE_HADITHS } from '../data/hadithsData';
-import { filterGharibItems } from '../data/gharibData';
+import { TAJWID_RULES } from '../data/tajwidRules';
 import { filterSurahs, filterHadiths } from '../utils/quranLogic';
 
 interface QuickSearchModalProps {
@@ -10,6 +10,7 @@ interface QuickSearchModalProps {
   onClose: () => void;
   onSelectSurah: (nomor: number, initialAyah?: number) => void;
   onSelectHadith: () => void;
+  onSelectTajwid?: () => void;
   onOpenVoiceSearch?: () => void;
   initialQuery?: string;
 }
@@ -19,6 +20,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
   onClose,
   onSelectSurah,
   onSelectHadith,
+  onSelectTajwid,
   onOpenVoiceSearch,
   initialQuery
 }) => {
@@ -35,9 +37,17 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     return filterSurahs(SURAH_METADATA_LIST, query).slice(0, 5);
   }, [query]);
 
-  const gharibResults = useMemo(() => {
-    if (!query.trim()) return [];
-    return filterGharibItems(query).slice(0, 4);
+  const tajwidResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return TAJWID_RULES.filter(
+      (r) =>
+        r.nama.toLowerCase().includes(q) ||
+        r.kategori.toLowerCase().includes(q) ||
+        r.deskripsi.toLowerCase().includes(q) ||
+        r.caraBaca.toLowerCase().includes(q) ||
+        r.contohLatin.toLowerCase().includes(q)
+    ).slice(0, 4);
   }, [query]);
 
   const hadithResults = useMemo(() => {
@@ -51,7 +61,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Pencarian Cepat Surah, Bacaan Gharib, dan Hadits"
+      aria-label="Pencarian Cepat Surah, Kaidah Tajwid, dan Hadits"
       className="fixed inset-0 z-50 flex items-start justify-center p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:p-4 sm:pt-16 bg-black/60 backdrop-blur-xs"
     >
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
@@ -66,7 +76,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
             maxLength={150}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ketik surah, bacaan gharib (mis. Imalah, Saktah), atau hadits..."
+            placeholder="Ketik surah, kaidah tajwid (mis. Ghunnah, Ikhfa), atau hadits..."
             className="w-full text-base bg-transparent text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none"
           />
           {query && (
@@ -104,10 +114,10 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
         <div className="max-h-[68dvh] sm:max-h-[65vh] overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-4">
           {!query.trim() ? (
             <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 space-y-2">
-              <p>Mulai ketik kata kunci untuk mencari di 114 Surah Al-Qur'an, Bacaan Gharib, dan Ensiklopedia Hadits.</p>
+              <p>Mulai ketik kata kunci untuk mencari di 114 Surah Al-Qur'an, Kaidah Ilmu Tajwid Praktis, dan Ensiklopedia Hadits.</p>
               <div className="flex flex-wrap items-center justify-center gap-1.5 pt-2">
                 <span className="text-[11px] text-slate-400">Pencarian populer:</span>
-                {['Al-Kahf', 'Yasin', 'Imalah', 'Saktah', 'Isymam', 'Ghorib', 'Sabar'].map((sample) => (
+                {['Al-Kahf', 'Yasin', 'Ghunnah', 'Ikhfa', 'Qalqalah', 'Idzhar Wajib', 'Sabar'].map((sample) => (
                   <button
                     key={sample}
                     onClick={() => setQuery(sample)}
@@ -156,32 +166,34 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
                 </div>
               )}
 
-              {/* Bacaan Gharib Matches */}
-              {gharibResults.length > 0 && (
+              {/* Kaidah Ilmu Tajwid Praktis Matches */}
+              {tajwidResults.length > 0 && (
                 <div className="space-y-1.5 pt-2">
                   <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-2">
-                    Bacaan Gharib / Musykilat ({gharibResults.length})
+                    Ilmu Tajwid Praktis ({tajwidResults.length})
                   </div>
-                  {gharibResults.map((g) => (
+                  {tajwidResults.map((r) => (
                     <button
-                      key={g.id}
+                      key={r.id}
                       onClick={() => {
-                        onSelectSurah(g.surahNomor, g.ayahNomor);
+                        if (onSelectTajwid) {
+                          onSelectTajwid();
+                        } else if (r.rujukanSurah) {
+                          onSelectSurah(r.rujukanSurah.surahNomor, r.rujukanSurah.ayatNomor);
+                        }
                         onClose();
                       }}
                       className="w-full p-3 rounded-xl flex items-center justify-between gap-3 text-left hover:bg-slate-100 dark:hover:bg-slate-800/80 cursor-pointer transition-colors group"
                     >
                       <div className="space-y-0.5 min-w-0">
-                        <div className="font-semibold text-xs text-amber-800 dark:text-amber-400">
-                          {g.kategoriNama} · QS. {g.surahNamaLatin} [{g.surahNomor}]: Ayat {g.ayahNomor}
+                        <div className="font-semibold text-xs text-emerald-700 dark:text-emerald-400">
+                          {r.nama} · Pelajaran ke-{r.pelajaranKe} ({r.halamanBuku})
                         </div>
                         <p className="text-xs text-slate-700 dark:text-slate-300 line-clamp-1">
-                          {g.caraBacaLatin}
+                          {r.deskripsi}
                         </p>
                       </div>
-                      <span className="font-arabic text-lg text-slate-800 dark:text-slate-200 shrink-0">
-                        {g.lafazhArab}
-                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                     </button>
                   ))}
                 </div>
@@ -216,9 +228,9 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
                 </div>
               )}
 
-              {surahResults.length === 0 && gharibResults.length === 0 && hadithResults.length === 0 && (
+              {surahResults.length === 0 && tajwidResults.length === 0 && hadithResults.length === 0 && (
                 <div className="text-center py-8 text-xs text-slate-500">
-                  Tidak ditemukan hasil untuk "{query}". Coba kata kunci seperti Imalah, Saktah, Yasin, atau Sabar.
+                  Tidak ditemukan hasil untuk "{query}". Coba kata kunci seperti Ghunnah, Ikhfa, Yasin, atau Sabar.
                 </div>
               )}
             </>

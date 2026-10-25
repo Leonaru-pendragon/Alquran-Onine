@@ -519,6 +519,7 @@ export default function App() {
         onClose={() => setIsQuickSearchOpen(false)}
         onSelectSurah={handleSelectSurah}
         onSelectHadith={() => setActiveTab('hadith')}
+        onSelectTajwid={() => setActiveTab('tajwid')}
         onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
         initialQuery={quickSearchInitialQuery}
       />

@@ -11,7 +11,6 @@ interface SurahListViewProps {
   lastRead: ReadingHistoryItem | null;
   onNavigateToHadith: () => void;
   onNavigateToTajwid: () => void;
-  onNavigateToGharib?: () => void;
   onNavigateToProgress?: () => void;
   onOpenVoiceSearch?: () => void;
   externalSearchQuery?: string;
@@ -23,7 +22,6 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
   lastRead,
   onNavigateToHadith,
   onNavigateToTajwid,
-  onNavigateToGharib,
   onNavigateToProgress,
   onOpenVoiceSearch,
   externalSearchQuery,
@@ -160,18 +158,18 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
         </button>
 
         <button
-          onClick={() => (onNavigateToGharib ? onNavigateToGharib() : onNavigateToTajwid())}
+          onClick={onNavigateToTajwid}
           className="p-4 rounded-xl text-left bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 [body.theme-sepia_&]:bg-[#f6eee0] [body.theme-sepia_&]:border-[#e5dac6] hover:border-emerald-400/60 transition-all cursor-pointer group"
         >
-          <div className="flex items-center justify-between text-xs text-amber-700 dark:text-amber-400 font-medium">
-            <span>Musykilat Riwayat Hafsh</span>
-            <span className="font-arabic text-sm">غريب</span>
+          <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            <span>Metode Qira'ati</span>
+            <span className="font-arabic text-sm">قِرَاءَتِي</span>
           </div>
           <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] mt-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-            Panduan Bacaan Gharib
+            Ilmu Tajwid Praktis
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#705e49] mt-0.5">
-            Imalah, Isymam, Tashil, Naql & 4 Ayat Saktah
+            13 Pelajaran & 33 Soal Jawab · H. Dachlan Salim Zarkasyi
           </p>
         </button>
       </div>
