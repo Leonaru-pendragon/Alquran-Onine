@@ -58,6 +58,23 @@ export const TafsirModal: React.FC<TafsirModalProps> = ({
     };
   }, [isOpen, surahNomor]);
 
+  // Keyboard navigation for iPad Magic Keyboard & Desktop (ArrowLeft, ArrowRight, Escape)
+  useEffect(() => {
+    if (!isOpen || !currentAyah) return;
+    const curNo = currentAyah.nomorAyat || 1;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowLeft' && curNo > 1) {
+        onNavigateAyah(curNo - 1);
+      } else if (e.key === 'ArrowRight' && curNo < totalAyah) {
+        onNavigateAyah(curNo + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentAyah, totalAyah, onClose, onNavigateAyah]);
+
   if (!isOpen || !currentAyah) return null;
 
   const rawTafsirText = tafsirData?.tafsir?.[ayahNomor] || '';

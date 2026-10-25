@@ -10,6 +10,7 @@ import type {
   SurahProgressItem
 } from '../types/quran.ts';
 import { JUZ_LIST, SURAH_METADATA_LIST } from '../data/quranMetadata.ts';
+import { sanitizePlainText } from './security.ts';
 
 const CANONICAL_SURAH_MAP = new Map<number, SurahMeta>(
   SURAH_METADATA_LIST.map((s) => [s.nomor, s])
@@ -168,10 +169,7 @@ export function formatIndonesianRelativeTime(timestamp: number): string {
  */
 export function cleanTafsirText(rawText: string): string[] {
   if (!rawText) return [];
-  const normalized = rawText
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/?[^>]+(>|$)/g, '')
-    .replace(/\r\n/g, '\n');
+  const normalized = sanitizePlainText(rawText, 200_000);
 
   return normalized
     .split(/\n\s*\n/)

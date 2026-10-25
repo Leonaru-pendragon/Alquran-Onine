@@ -4,21 +4,24 @@ export interface MobilePlatformInfo {
   isIOS: boolean;
   isIPadOS: boolean;
   isAndroid: boolean;
+  isTablet: boolean;
   isMobile: boolean;
 }
 
 /**
- * Accurately detects Android, iPhone/iPod/iPad, and modern iPadOS 13+
+ * Accurately detects Android phones/tablets, iPhone/iPod, classic iPad, and modern iPadOS 13+
  * (which reports MacIntel in userAgent/platform with maxTouchPoints > 1).
  */
 export function detectMobilePlatform(
   userAgent: string,
   maxTouchPoints = 0,
-  platform = ''
+  platform = '',
+  screenShortSide = 0
 ): MobilePlatformInfo {
   const ua = userAgent.toLowerCase();
   const plat = platform.toLowerCase();
 
+  const isClassicIPad = /ipad/.test(ua);
   const isClassicIOS = /iphone|ipad|ipod/.test(ua);
   const isIPadOS =
     !isClassicIOS &&
@@ -27,12 +30,19 @@ export function detectMobilePlatform(
 
   const isIOS = isClassicIOS || isIPadOS;
   const isAndroid = /android/.test(ua);
-  const isMobile = isIOS || isAndroid || /mobile/.test(ua);
+  const isAndroidTablet = isAndroid && !/mobile/.test(ua);
+  const isGenericTablet = /tablet|playbook|silk/.test(ua);
+  const isTouchTabletBySize =
+    (isIOS || isAndroid || maxTouchPoints > 1) && screenShortSide >= 600 && !/iphone|ipod/.test(ua);
+
+  const isTablet = isClassicIPad || isIPadOS || isAndroidTablet || isGenericTablet || isTouchTabletBySize;
+  const isMobile = isIOS || isAndroid || isTablet || /mobile/.test(ua);
 
   return {
     isIOS,
     isIPadOS,
     isAndroid,
+    isTablet,
     isMobile
   };
 }
@@ -72,74 +82,55 @@ export function detectHorizontalSwipe(
   return dx < 0 ? 'left' : 'right';
 }
 
-export type DeviceFormFactor = 'phone' | 'tablet' | 'desktop';
-export type ViewportOrientation = 'portrait' | 'landscape';
+/**
+ * Maps the active reading theme to the exact system status bar / Safari toolbar hex color.
+ */
+export function getThemeStatusBarColor(theme: ReadingTheme): string {
+  if (theme === 'dark') return '#0b1118';
+  if (theme === 'sepia') return '#fbf5e8';
+  return '#f8fafc';
+}
 
 export interface DeviceLayoutProfile {
-  formFactor: DeviceFormFactor;
-  orientation: ViewportOrientation;
+  formFactor: 'phone' | 'tablet' | 'desktop';
+  orientation: 'portrait' | 'landscape';
   isCompactPhone: boolean;
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
   useBottomNavigationDock: boolean;
-  recommendedArabicFontSize: number;
+  platformInfo: MobilePlatformInfo;
 }
 
 /**
- * Evaluates viewport dimensions + touch/UA signals to classify narrow phones, standard phones,
- * tablets/iPads (both portrait & landscape), and desktop screens accurately.
+ * Classifies device layout ergonomics across compact phones, standard phones,
+ * iPadOS / Android tablets (portrait & landscape), and desktop viewports.
  */
 export function detectDeviceLayoutProfile(
   width: number,
   height: number,
-  userAgent = '',
+  userAgent: string,
   maxTouchPoints = 0,
   platform = ''
 ): DeviceLayoutProfile {
-  const safeWidth = Math.max(0, width);
-  const safeHeight = Math.max(0, height);
-  const orientation: ViewportOrientation = safeWidth > safeHeight ? 'landscape' : 'portrait';
-  const ua = userAgent.toLowerCase();
-  const mobileInfo = detectMobilePlatform(userAgent, maxTouchPoints, platform);
+  const shortSide = Math.min(width, height);
+  const platformInfo = detectMobilePlatform(userAgent, maxTouchPoints, platform, shortSide);
+  const orientation: 'portrait' | 'landscape' = height >= width ? 'portrait' : 'landscape';
 
-  const minEdge = Math.min(safeWidth, safeHeight);
-  const maxEdge = Math.max(safeWidth, safeHeight);
-
-  const isExplicitTabletUA =
-    /ipad|tablet|playbook|silk/.test(ua) ||
-    mobileInfo.isIPadOS ||
-    (/android/.test(ua) && !/mobile/.test(ua));
-
-  let formFactor: DeviceFormFactor;
-  if (safeWidth < 768 && minEdge < 600 && !isExplicitTabletUA) {
-    formFactor = 'phone';
-  } else if (
-    isExplicitTabletUA ||
-    (minEdge >= 600 && maxEdge <= 1366 && (maxTouchPoints > 0 || safeWidth < 1200))
-  ) {
+  let formFactor: 'phone' | 'tablet' | 'desktop';
+  if (platformInfo.isTablet || (width >= 640 && width < 1024 && maxTouchPoints > 0)) {
     formFactor = 'tablet';
-  } else if (safeWidth < 768) {
+  } else if (platformInfo.isMobile || width < 640) {
     formFactor = 'phone';
-  } else if (safeWidth < 1024) {
-    formFactor = 'tablet';
   } else {
     formFactor = 'desktop';
   }
 
-  const isCompactPhone = formFactor === 'phone' && safeWidth > 0 && safeWidth <= 375;
+  const isCompactPhone = formFactor === 'phone' && width < 380;
   const isTabletPortrait = formFactor === 'tablet' && orientation === 'portrait';
   const isTabletLandscape = formFactor === 'tablet' && orientation === 'landscape';
-
-  // Use bottom thumb bar / floating iPad dock on viewports < 1024px so top navbar never collides
-  const useBottomNavigationDock = safeWidth < 1024;
-
-  const recommendedArabicFontSize = isCompactPhone
-    ? 26
-    : formFactor === 'phone'
-    ? 28
-    : formFactor === 'tablet'
-    ? 32
-    : 30;
+  const useBottomNavigationDock =
+    formFactor === 'phone' ||
+    (formFactor === 'tablet' && (orientation === 'portrait' || width < 1024));
 
   return {
     formFactor,
@@ -148,15 +139,6 @@ export function detectDeviceLayoutProfile(
     isTabletPortrait,
     isTabletLandscape,
     useBottomNavigationDock,
-    recommendedArabicFontSize
+    platformInfo
   };
-}
-
-/**
- * Maps the active reading theme to the exact system status bar / Safari toolbar hex color.
- */
-export function getThemeStatusBarColor(theme: ReadingTheme): string {
-  if (theme === 'dark') return '#0b1118';
-  if (theme === 'sepia') return '#fbf5e8';
-  return '#f8fafc';
 }

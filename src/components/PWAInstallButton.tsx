@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Share, PlusSquare, Smartphone, X } from 'lucide-react';
+import { Download, Share, PlusSquare, Smartphone, Tablet, X } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface PWAInstallButtonProps {
@@ -7,7 +7,7 @@ interface PWAInstallButtonProps {
 }
 
 export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'settings' }) => {
-  const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
+  const { isInstallable, isInstalled, isIOS, isIPadOS, isTablet, install } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [dismissedBanner, setDismissedBanner] = useState(false);
 
@@ -15,7 +15,9 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 's
     return null;
   }
 
-  // Banner variant only appears when browser offers install prompt (Android/Chromium) or on iOS/iPadOS Safari
+  const DeviceIcon = isTablet ? Tablet : Smartphone;
+
+  // Banner variant only appears when browser offers install prompt (Android/Tablet/Chromium) or on iOS/iPadOS Safari
   if (variant === 'banner') {
     if (dismissedBanner || (!isInstallable && !isIOS)) {
       return null;
@@ -26,14 +28,18 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 's
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 [body.theme-sepia_&]:bg-[#f6eee0] border border-emerald-200/80 dark:border-emerald-900/60 [body.theme-sepia_&]:border-[#dec9a5] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
-              <Smartphone className="w-5 h-5" />
+              <DeviceIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <h3 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] truncate">
-                Pasang Aplikasi Al-Qur'an di Layar Utama
+                {isIPadOS
+                  ? "Pasang Al-Qur'an Digital di Layar Utama iPad"
+                  : isTablet
+                  ? "Pasang Al-Qur'an Digital di Tablet Anda"
+                  : "Pasang Aplikasi Al-Qur'an di Layar Utama"}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a] truncate">
-                Akses cepat layar penuh dan tetap dapat dibaca tanpa sinyal internet
+                Mendukung orientasi potret, lanskap Split View, dan bacaan tanpa internet
               </p>
             </div>
           </div>
@@ -68,20 +74,24 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 's
     );
   }
 
-  // Settings variant: always offers one-tap install if supported, or clear Android/iOS/Tablet instructions
+  // Settings variant: always offers one-tap install if supported, or clear Android/iOS/iPad/Tablet instructions
   return (
     <>
       <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 [body.theme-sepia_&]:bg-[#ebdcc0]/50 border border-slate-200/80 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
-            Aplikasi HP, Tablet & iPad (Layar Penuh)
+            Aplikasi Android, Tablet, iPhone & iPad (Layar Penuh)
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a] mt-0.5">
             {isInstallable
-              ? 'Siap dipasang langsung ke layar utama ponsel atau tablet Anda'
+              ? isTablet
+                ? 'Siap dipasang langsung ke layar utama Tablet Anda'
+                : 'Siap dipasang langsung ke layar utama perangkat Anda'
               : isIOS
-              ? 'Tambahkan ke Layar Utama Safari di iPhone atau iPad (mendukung Portrait & Landscape)'
-              : 'Buka melalui Chrome (HP/Tablet Android) atau Safari (iPhone/iPad) untuk memasang aplikasi'}
+              ? isIPadOS
+                ? 'Tambahkan ke Dock atau Layar Utama Safari di iPad Anda'
+                : 'Tambahkan ke Layar Utama Safari di iPhone atau iPad'
+              : 'Buka melalui Chrome (Android/Tablet) atau Safari (iPhone/iPad) untuk memasang'}
           </p>
         </div>
 
@@ -104,7 +114,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 's
           <button
             type="button"
             onClick={() => setShowIOSGuide(true)}
-            className="min-h-11 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium shrink-0 cursor-pointer whitespace-nowrap transition-colors"
+            className="min-h-11 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium shrink-0 cursor-pointer whitespace-nowrap transition-colors"
           >
             Panduan Pasang
           </button>
@@ -123,11 +133,11 @@ const IOSInstallSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => (
     aria-labelledby="ios-install-title"
     className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4"
   >
-    <div className="w-full max-w-lg rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl space-y-4">
+    <div className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#fbf5e8] border border-slate-200 dark:border-slate-800 p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl space-y-4">
       <div className="sm:hidden w-10 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto -mt-2 mb-2" />
       <div className="flex items-center justify-between">
         <h3 id="ios-install-title" className="text-base font-bold text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]">
-          Pasang di HP, Tablet Android & iPad
+          Pasang di HP, Tablet & iPad
         </h3>
         <button
           type="button"
@@ -141,23 +151,23 @@ const IOSInstallSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 
       <div className="space-y-3 text-xs sm:text-sm text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#382c1e]">
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 [body.theme-sepia_&]:bg-[#ebdcc0]/60 space-y-2">
-          <div className="font-semibold text-slate-900 dark:text-slate-100">Safari di iPhone & iPad (iPadOS):</div>
+          <div className="font-semibold text-slate-900 dark:text-slate-100">Safari di iPad & iPhone:</div>
           <ol className="space-y-2 list-decimal list-inside">
             <li className="flex items-center gap-2">
               <Share className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Ketuk ikon <strong>Bagikan (Share)</strong> di bilah atas (iPad) atau bawah (iPhone) Safari.</span>
+              <span>Ketuk ikon <strong>Bagikan (Share)</strong> di bilah atas Safari (iPad) atau bilah bawah (iPhone).</span>
             </li>
             <li className="flex items-center gap-2">
               <PlusSquare className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Pilih <strong>Tambah ke Layar Utama (Add to Home Screen)</strong> lalu ketuk <strong>Tambah</strong>.</span>
+              <span>Pilih <strong>Tambah ke Layar Utama (Add to Home Screen)</strong>.</span>
             </li>
           </ol>
         </div>
 
         <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 [body.theme-sepia_&]:bg-[#ebdcc0]/60 space-y-1.5">
-          <div className="font-semibold text-slate-900 dark:text-slate-100">Chrome di HP & Tablet Android:</div>
+          <div className="font-semibold text-slate-900 dark:text-slate-100">Chrome di Tablet & HP Android:</div>
           <p>
-            Ketuk menu titik tiga di pojok kanan atas Chrome, lalu pilih <strong>Instal aplikasi</strong> atau <strong>Tambahkan ke layar utama</strong>. Mendukung rotasi layar tegak maupun mendatar.
+            Ketuk menu titik tiga di kanan atas Chrome, lalu pilih <strong>Instal aplikasi</strong> untuk tampilan layar penuh mendukung rotasi potret & lanskap.
           </p>
         </div>
       </div>

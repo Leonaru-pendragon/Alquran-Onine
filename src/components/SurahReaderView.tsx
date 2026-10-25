@@ -13,13 +13,16 @@ import {
   Info,
   Sparkles,
   ArrowUp,
-  BookOpen
+  BookOpen,
+  PanelLeft,
+  Search,
+  X,
+  ArrowUpRight
 } from 'lucide-react';
 import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
 import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
-import { renderTajwidHtml, normalizeQuranicText } from '../data/tajwidRules';
-import { getGharibBySurah, getGharibBySurahAyah } from '../data/gharibData';
+import { TAJWID_RULES, renderTajwidHtml, getTajwidRuleById } from '../data/tajwidRules';
 import {
   isAyahBookmarked,
   countAyahsInRanges,
@@ -42,6 +45,7 @@ interface SurahReaderViewProps {
   onPlayAyahAudio: (surahNomor: number, ayahNomor: number, audioUrl: string) => void;
   onPlaySurahFullAudio?: (surahNomor: number) => void;
   onOpenShareModal: (surahName: string, surahNomor: number, ayah: Ayah) => void;
+  onNavigateToTajwid?: () => void;
 }
 
 export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
@@ -57,7 +61,8 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   currentPlayingAudio,
   onPlayAyahAudio,
   onPlaySurahFullAudio,
-  onOpenShareModal
+  onOpenShareModal,
+  onNavigateToTajwid
 }) => {
   const [surah, setSurah] = useState<SurahDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +74,16 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   const [customNote, setCustomNote] = useState('');
   const [selectedTafsirAyah, setSelectedTafsirAyah] = useState<Ayah | null>(null);
   const [highlightedAyah, setHighlightedAyah] = useState<number | null>(null);
+
+  // Tablet / iPad Split-View Sidebar & Interactive Tajwid Inspector states
+  const [showSurahSidebar, setShowSurahSidebar] = useState(false);
+  const [sidebarQuery, setSidebarQuery] = useState('');
+  const [showTajwidLegend, setShowTajwidLegend] = useState(false);
+  const [inspectedTajwid, setInspectedTajwid] = useState<{
+    ayahNomor: number;
+    ruleId: string;
+    matchedText: string;
+  } | null>(null);
 
   const ayahRefs = useRef<Map<number, HTMLElement>>(new Map());
 
@@ -210,18 +225,6 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
 
   const prevSurahNomor = currentSurahNomor > 1 ? currentSurahNomor - 1 : null;
   const nextSurahNomor = currentSurahNomor < 114 ? currentSurahNomor + 1 : null;
-  const surahGharibList = getGharibBySurah(currentSurahNomor);
-
-  const jumpToAyahInSurah = (ayahNo: number) => {
-    const el = ayahRefs.current.get(ayahNo);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setHighlightedAyah(ayahNo);
-      setTimeout(() => {
-        setHighlightedAyah((prev) => (prev === ayahNo ? null : prev));
-      }, 3500);
-    }
-  };
 
   if (loading) {
     return (
@@ -248,59 +251,205 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
     );
   }
 
+  const filteredSidebarSurahs = SURAH_METADATA_LIST.filter((s) => {
+    const q = sidebarQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      s.namaLatin.toLowerCase().includes(q) ||
+      s.arti.toLowerCase().includes(q) ||
+      String(s.nomor) === q
+    );
+  });
+
+  const activeMushafTajwidRules = TAJWID_RULES.filter((r) => r.aktifDiMushaf);
+
+  const handleAyahArabicClick = (ayahNomor: number, e: React.MouseEvent<HTMLDivElement>) => {
+    if (!settings.showTajwid) return;
+    const target = (e.target as HTMLElement).closest(
+      '[data-tajwid], .tajwid-ghunnah'
+    ) as HTMLElement | null;
+    if (!target) return;
+    const ruleId =
+      target.getAttribute('data-tajwid') ||
+      (target.classList.contains('tajwid-ghunnah') ? 'ghunnah' : null);
+    if (!ruleId) return;
+    setInspectedTajwid((prev) =>
+      prev && prev.ayahNomor === ayahNomor && prev.ruleId === ruleId && prev.matchedText === target.textContent
+        ? null
+        : {
+            ayahNomor,
+            ruleId,
+            matchedText: (target.textContent || '').trim()
+          }
+    );
+  };
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      
-      {/* Reader Navigation & Toolstrip (sticky on >=1024px desktop/iPad landscape, inline on phones & iPad portrait to preserve 85%+ open reading canvas) */}
-      <div className="lg:sticky lg:top-16 z-30 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 bg-white/95 dark:bg-slate-950/95 [body.theme-sepia_&]:bg-[#fbf5e8]/95 [body.theme-sepia_&]:border-[#e8dec9]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          
-          {/* Surah Selector & Step Buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <button
-              onClick={() => prevSurahNomor && onSelectSurah(prevSurahNomor)}
-              disabled={!prevSurahNomor}
-              aria-label="Surah Sebelumnya"
-              title="Surah Sebelumnya"
-              className="min-w-10 min-h-10 lg:min-w-0 lg:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-            </button>
+    <div
+      className={`${
+        showSurahSidebar ? 'max-w-7xl' : 'max-w-5xl'
+      } mx-auto px-4 sm:px-6 lg:px-8 py-6 transition-all`}
+    >
+      <div
+        className={
+          showSurahSidebar
+            ? 'md:grid md:grid-cols-[248px_minmax(0,1fr)] lg:grid-cols-[276px_minmax(0,1fr)] md:gap-6 items-start'
+            : ''
+        }
+      >
+        {/* Tablet / iPad & Desktop Split-View Surah Navigator Sidebar */}
+        {showSurahSidebar && (
+          <aside
+            aria-label="Panel Navigasi Cepat 114 Surah"
+            className="hidden md:flex flex-col sticky top-20 max-h-[calc(100dvh-7rem)] rounded-2xl bg-white dark:bg-slate-900/80 [body.theme-sepia_&]:bg-[#f6eee0] border border-slate-200/80 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] overflow-hidden shadow-xs"
+          >
+            <div className="p-3 border-b border-slate-100 dark:border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Daftar 114 Surah
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSurahSidebar(false)}
+                  aria-label="Tutup Panel Surah"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="search"
+                  value={sidebarQuery}
+                  onChange={(e) => setSidebarQuery(e.target.value)}
+                  placeholder="Cari surah / nomor..."
+                  aria-label="Cari surah di panel samping"
+                  className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                />
+              </div>
+            </div>
 
-            {/* Quick dropdown */}
-            <select
-              value={currentSurahNomor}
-              onChange={(e) => onSelectSurah(Number(e.target.value))}
-              aria-label="Pilih Surah"
-              className="min-h-10 lg:min-h-0 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f3ead7] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer max-w-[215px] sm:max-w-none truncate"
-            >
-              {SURAH_METADATA_LIST.map((s) => (
-                <option key={s.nomor} value={s.nomor}>
-                  {s.nomor}. {s.namaLatin} ({s.arti})
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
+              {filteredSidebarSurahs.map((s) => {
+                const isCurrent = s.nomor === currentSurahNomor;
+                return (
+                  <button
+                    key={s.nomor}
+                    type="button"
+                    onClick={() => {
+                      setInspectedTajwid(null);
+                      onSelectSurah(s.nomor, 1);
+                    }}
+                    className={`w-full px-2.5 py-2 rounded-xl text-left transition-colors cursor-pointer flex items-center justify-between gap-2 ${
+                      isCurrent
+                        ? 'bg-emerald-600 text-white font-semibold'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800/70 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <div className="min-w-0 flex items-center gap-2">
+                      <span
+                        className={`text-[11px] font-mono tabular-nums w-6 shrink-0 ${
+                          isCurrent ? 'text-emerald-100' : 'text-slate-400'
+                        }`}
+                      >
+                        {s.nomor}.
+                      </span>
+                      <div className="truncate">
+                        <div className="text-xs truncate">{s.namaLatin}</div>
+                        <div
+                          className={`text-[10px] truncate ${
+                            isCurrent ? 'text-emerald-100' : 'text-slate-400'
+                          }`}
+                        >
+                          {s.tempatTurun} · {s.jumlahAyat} ayat
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={`font-arabic text-sm shrink-0 ${
+                        isCurrent ? 'text-white' : 'text-emerald-700 dark:text-emerald-400'
+                      }`}
+                    >
+                      {s.nama}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </aside>
+        )}
 
-            <button
-              onClick={() => nextSurahNomor && onSelectSurah(nextSurahNomor)}
-              disabled={!nextSurahNomor}
-              aria-label="Surah Selanjutnya"
-              title="Surah Selanjutnya"
-              className="min-w-10 min-h-10 lg:min-w-0 lg:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
-            >
-              <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-            </button>
-          </div>
+        {/* Main Mushaf Reading Column */}
+        <div className="min-w-0 space-y-8">
+          {/* Reader Navigation & Toolstrip (sticky on tablet/desktop, inline on mobile to preserve 85%+ reading viewport) */}
+          <div className="md:sticky md:top-16 z-30 py-3 -mx-4 px-4 sm:-mx-6 sm:px-6 md:mx-0 md:px-4 md:rounded-2xl backdrop-blur-md border-b md:border border-slate-200/80 dark:border-slate-800/80 bg-white/90 dark:bg-slate-950/90 [body.theme-sepia_&]:bg-[#fbf5e8]/90 [body.theme-sepia_&]:border-[#e8dec9] space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              {/* Surah Selector & Step Buttons */}
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Tablet / iPad Split-View Sidebar Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowSurahSidebar((prev) => !prev)}
+                  aria-label={showSurahSidebar ? 'Sembunyikan Panel Surah' : 'Buka Panel Daftar Surah'}
+                  title="Panel Split-View 114 Surah (Tablet / iPad / Desktop)"
+                  className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors whitespace-nowrap ${
+                    showSurahSidebar
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-semibold'
+                      : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <PanelLeft className="w-3.5 h-3.5" />
+                  <span>Panel Surah</span>
+                </button>
 
-          {/* Reading Customization Controls */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                <button
+                  onClick={() => prevSurahNomor && onSelectSurah(prevSurahNomor)}
+                  disabled={!prevSurahNomor}
+                  aria-label="Surah Sebelumnya"
+                  title="Surah Sebelumnya"
+                  className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                </button>
+
+                {/* Quick dropdown */}
+                <select
+                  value={currentSurahNomor}
+                  onChange={(e) => {
+                    setInspectedTajwid(null);
+                    onSelectSurah(Number(e.target.value));
+                  }}
+                  aria-label="Pilih Surah"
+                  className="min-h-10 sm:min-h-0 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 [body.theme-sepia_&]:bg-[#f3ead7] [body.theme-sepia_&]:border-[#dec9a5] text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer max-w-[200px] sm:max-w-[240px] lg:max-w-none truncate"
+                >
+                  {SURAH_METADATA_LIST.map((s) => (
+                    <option key={s.nomor} value={s.nomor}>
+                      {s.nomor}. {s.namaLatin} ({s.arti})
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => nextSurahNomor && onSelectSurah(nextSurahNomor)}
+                  disabled={!nextSurahNomor}
+                  aria-label="Surah Selanjutnya"
+                  title="Surah Selanjutnya"
+                  className="min-w-10 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
+                >
+                  <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                </button>
+              </div>
+
+              {/* Reading Customization Controls */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
             
             {/* Tajwid Toggle */}
             <button
               onClick={() => onUpdateSettings({ showTajwid: !settings.showTajwid })}
               aria-label={`Toggle Tajwid: ${settings.showTajwid ? 'Aktif' : 'Nonaktif'}`}
               title="Aktifkan / Nonaktifkan Warna Tajwid"
-              className={`min-h-9 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border whitespace-nowrap ${
+              className={`px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 border ${
                 settings.showTajwid
                   ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 font-semibold'
                   : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
@@ -308,20 +457,6 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Tajwid</span>
-            </button>
-
-            {/* Bacaan Gharib Toggle */}
-            <button
-              onClick={() => onUpdateSettings({ showGharib: settings.showGharib === false })}
-              aria-label={`Toggle Catatan Gharib: ${settings.showGharib !== false ? 'Aktif' : 'Nonaktif'}`}
-              title="Tampilkan / Sembunyikan Catatan Bacaan Gharib (Imalah, Saktah, Isymam, dll)"
-              className={`min-h-9 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer border whitespace-nowrap ${
-                settings.showGharib !== false
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 font-semibold'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800'
-              }`}
-            >
-              Gharib
             </button>
 
             {/* Transliteration (Latin) Toggle */}
@@ -389,10 +524,41 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               <Info className="w-4 h-4" />
             </button>
 
-          </div>
+              </div>
+            </div>
 
-        </div>
-      </div>
+            {/* Interactive Tajwid Hint & Collapsible Kamus Warna Strip */}
+            {settings.showTajwid && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>
+                    Tajwid Interaktif aktif · Ketuk lafadz berwarna pada ayat untuk melihat penjelasan hukum bacaannya
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowTajwidLegend((prev) => !prev)}
+                    className="font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer whitespace-nowrap"
+                  >
+                    {showTajwidLegend ? 'Tutup Kamus Warna' : 'Lihat Kamus Warna'}
+                  </button>
+                </div>
+
+                {showTajwidLegend && (
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-slate-700 dark:text-slate-300">
+                    {activeMushafTajwidRules.map((rule) => (
+                      <span key={rule.id} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span
+                          className="w-2.5 h-2.5 rounded-xs shrink-0"
+                          style={{ backgroundColor: rule.hexColor }}
+                        />
+                        <span>{rule.nama}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
       {/* Surah Header Card */}
       <div className="text-center py-8 px-6 rounded-2xl bg-gradient-to-b from-emerald-500/10 via-emerald-600/5 to-transparent border border-emerald-200/80 dark:border-emerald-900/60 [body.theme-sepia_&]:bg-[#ebdcc0]/50 [body.theme-sepia_&]:border-[#dec9a5] space-y-3">
@@ -411,7 +577,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
         </div>
 
         {/* Audio Recitation Action */}
-        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+        <div className="pt-2 flex items-center justify-center gap-3">
           <button
             onClick={() => {
               if (onPlaySurahFullAudio) {
@@ -429,25 +595,6 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             <span>Putar Murottal Surah Ini</span>
           </button>
         </div>
-
-        {/* Quick Jump Strip if Surah contains Bacaan Gharib */}
-        {surahGharibList.length > 0 && settings.showGharib !== false && (
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-1.5 text-xs">
-            <span className="text-amber-800 dark:text-amber-300 [body.theme-sepia_&]:text-[#6b4423] font-medium">
-              Bacaan Gharib di surah ini:
-            </span>
-            {surahGharibList.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => jumpToAyahInSurah(g.ayahNomor)}
-                className="px-2.5 py-1 rounded-lg bg-amber-50/90 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/70 text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/60 font-medium cursor-pointer transition-colors"
-              >
-                Ayat {g.ayahNomor} ({g.kategoriNama.split(' ')[0]})
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Collapsible Surah Brief Info */}
         {showTafsirInfo && (
@@ -490,8 +637,6 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             currentPlayingAudio?.ayahNomor === ayah.nomorAyat &&
             currentPlayingAudio?.isPlaying;
           const isHighlighted = highlightedAyah === ayah.nomorAyat;
-          const ayahGharibNotes =
-            settings.showGharib !== false ? getGharibBySurahAyah(surah.nomor, ayah.nomorAyat) : [];
 
           return (
             <article
@@ -621,26 +766,100 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
 
               </div>
 
-              {/* Arabic Verse Text */}
+              {/* Arabic Verse Text (Interactive Tap-to-Inspect Tajwid when showTajwid is enabled) */}
               <div
+                onClick={(e) => handleAyahArabicClick(ayah.nomorAyat, e)}
                 className={`py-5 arabic-verse ${
                   settings.arabicFontFamily === 'scheherazade' ? 'font-scheherazade' : 'font-arabic'
                 } text-slate-900 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217]`}
                 style={{ fontSize: `${settings.arabicFontSize}px` }}
               >
-                {settings.showTajwid ? (
+                {settings.showTajwid || settings.showGharib !== false ? (
                   <span
                     dangerouslySetInnerHTML={{
-                      __html: renderTajwidHtml(ayah.teksArab, true)
+                      __html: renderTajwidHtml(ayah.teksArab, settings.showTajwid, {
+                        showGharib: settings.showGharib !== false,
+                        surahNomor: surah.nomor,
+                        ayahNomor: ayah.nomorAyat
+                      })
                     }}
                   />
                 ) : (
-                  normalizeQuranicText(ayah.teksArab)
+                  ayah.teksArab
                 )}
                 <span className="inline-flex items-center justify-center px-2 text-base text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] select-none">
                   ﴿{ayah.nomorAyat}﴾
                 </span>
               </div>
+
+              {/* Tap-to-Inspect Tajwid Explanation Card */}
+              {settings.showTajwid &&
+                inspectedTajwid?.ayahNomor === ayah.nomorAyat &&
+                (() => {
+                  const rule = getTajwidRuleById(inspectedTajwid.ruleId);
+                  if (!rule) return null;
+                  return (
+                    <div
+                      role="region"
+                      aria-label={`Penjelasan Hukum Tajwid ${rule.nama}`}
+                      className="mb-3 p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-800/70 [body.theme-sepia_&]:bg-[#ebdcc0]/70 border border-emerald-300/80 dark:border-emerald-800 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-0.5">
+                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                            <span>{rule.urutanBuku || `Pelajaran ke-${rule.pelajaranKe}`}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>{rule.halamanBuku}</span>
+                            {rule.kadarHarakat && (
+                              <>
+                                <span aria-hidden="true">·</span>
+                                <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                                  {rule.kadarHarakat}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-3 h-3 rounded-xs shrink-0"
+                              style={{ backgroundColor: rule.hexColor }}
+                            />
+                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+                              {rule.nama}
+                            </h4>
+                            <span className="font-arabic text-lg text-slate-900 dark:text-slate-100 px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                              {inspectedTajwid.matchedText}
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setInspectedTajwid(null)}
+                          aria-label="Tutup penjelasan tajwid"
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {rule.deskripsi}
+                      </p>
+
+                      {onNavigateToTajwid && (
+                        <button
+                          type="button"
+                          onClick={onNavigateToTajwid}
+                          className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                        >
+                          <span>Pelajari lengkap di Buku Ilmu Tajwid Praktis</span>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
               {/* Transliteration (Latin) */}
               {settings.showLatin && (
@@ -657,35 +876,6 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                 >
                   {ayah.teksIndonesia}
                 </p>
-              )}
-
-              {/* Inline Catatan Bacaan Gharib (Musykilat Al-Qur'an) */}
-              {ayahGharibNotes.length > 0 && (
-                <div className="mt-4 space-y-2.5">
-                  {ayahGharibNotes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="p-3.5 sm:p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/25 [body.theme-sepia_&]:bg-[#ebdcc0]/70 border border-amber-200/80 dark:border-amber-800/60 [body.theme-sepia_&]:border-[#d6be94] space-y-1.5"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-1.5 font-semibold text-amber-900 dark:text-amber-300 [body.theme-sepia_&]:text-[#5c3a19]">
-                          <span>Catatan Bacaan Gharib</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{note.kategoriNama}</span>
-                        </div>
-                        <span className="font-arabic text-lg font-bold text-amber-900 dark:text-amber-200 [body.theme-sepia_&]:text-[#2c2217]">
-                          {normalizeQuranicText(note.lafazhArab)}
-                        </span>
-                      </div>
-                      <p className="text-xs font-medium text-emerald-800 dark:text-emerald-300 [body.theme-sepia_&]:text-[#3b2d1c]">
-                        Cara Baca: <span className="italic">{note.caraBacaLatin}</span>
-                      </p>
-                      <p className="text-xs text-slate-700 dark:text-slate-300 [body.theme-sepia_&]:text-[#473826] leading-relaxed">
-                        {note.panduanBaca}
-                      </p>
-                    </div>
-                  ))}
-                </div>
               )}
             </article>
           );
@@ -754,6 +944,8 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
             <ChevronRight className="w-4 h-4" />
           </button>
         ) : <div />}
+      </div>
+        </div>
       </div>
 
       {/* Optional Note Modal when Bookmarking (Bottom Sheet on Mobile) */}

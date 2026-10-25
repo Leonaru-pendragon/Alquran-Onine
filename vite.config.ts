@@ -28,7 +28,7 @@ export default defineConfig(() => {
           name: 'Al-Quran Digital & Hadits Lengkap',
           short_name: "Al-Qur'an",
           description:
-            'Al-Quran digital minimalis dengan terjemahan Kemenag RI, tajwid berwarna, bacaan gharib, audio murottal, ensiklopedia hadits 9 imam, dan riwayat khatam.',
+            'Al-Quran digital minimalis dengan terjemahan Kemenag RI, tajwid berwarna, audio murottal, ensiklopedia hadits 9 imam, dan riwayat khatam.',
           theme_color: '#059669',
           background_color: '#f8fafc',
           display: 'standalone',

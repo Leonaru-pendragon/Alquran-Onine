@@ -200,8 +200,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <label className="flex items-center justify-between gap-3 py-1 cursor-pointer">
             <div className="text-xs">
-              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Catatan Bacaan Gharib (Musykilat)</span>
-              <span className="text-slate-500 dark:text-slate-400">Tampilkan panduan Imalah, Isymam, Tashil, Naql & Saktah langsung di bawah ayat</span>
+              <span className="font-semibold text-slate-900 dark:text-slate-100 block">Warna & Catatan Bacaan Gharib</span>
+              <span className="text-slate-500 dark:text-slate-400">Beri warna khusus pada lafazh Gharib di setiap surah beserta panduan cara bacanya</span>
             </div>
             <input
               type="checkbox"

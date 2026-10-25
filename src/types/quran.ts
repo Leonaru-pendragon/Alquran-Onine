@@ -52,18 +52,63 @@ export interface SurahDetail extends SurahMeta {
   };
 }
 
+export interface TajwidExampleGroup {
+  judul: string;
+  rumusArab?: string;
+  contohArab: string;
+  contohLatin?: string;
+}
+
 export interface TajwidRule {
   id: string;
+  pelajaranKe: number;
+  halamanBuku: string;
+  urutanBuku?: string;
+  rumusArab?: string;
   nama: string;
   kategori: string;
   warna: string; // css color class
   hexColor: string;
+  kadarHarakat?: string;
+  aktifDiMushaf?: boolean;
   deskripsi: string;
   caraBaca: string;
+  tingkatan?: string;
+  catatanPenting?: string;
   huruf: string[];
   contohArab: string;
   contohLatin: string;
   penjelasanContoh: string;
+  rincianContoh?: TajwidExampleGroup[];
+  soalJawabBuku?: Array<{
+    soal: string;
+    jawab: string;
+  }>;
+  rujukanSurah?: {
+    surahNomor: number;
+    ayatNomor: number;
+    label: string;
+  };
+}
+
+export interface TajwidBookQuestion {
+  nomor: number;
+  pelajaran: string;
+  pertanyaan: string;
+  jawaban: string;
+  contohArab?: string;
+  ruleId?: string;
+}
+
+export interface TajwidQuizQuestion {
+  id: string;
+  bab: string;
+  verseArabic: string;
+  highlightWord: string;
+  question: string;
+  options: string[];
+  correct: string;
+  explanation: string;
 }
 
 export type HadithGrade = 'Shahih' | 'Hasan' | 'Hasan Shahih' | 'Muttafaq Alaih';

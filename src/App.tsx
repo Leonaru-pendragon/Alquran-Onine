@@ -32,7 +32,6 @@ const HISTORY_STORAGE_KEY = 'quran_history_v1';
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<'surah' | 'reader' | 'hadith' | 'tajwid' | 'saved'>('surah');
-  const [tajwidSection, setTajwidSection] = useState<'tajwid' | 'gharib' | 'quiz'>('tajwid');
   const [currentSurahNomor, setCurrentSurahNomor] = useState<number>(1);
   const [initialAyahNomor, setInitialAyahNomor] = useState<number>(1);
 
@@ -50,7 +49,6 @@ export default function App() {
       translationFontSize: 15,
       arabicFontFamily: 'amiri',
       showTajwid: true,
-      showGharib: true,
       showTranslation: true,
       showLatin: true,
       autoScrollAudio: true,
@@ -437,21 +435,13 @@ export default function App() {
       />
 
       {/* Main Page Views */}
-      <main className="flex-1 pb-28 md:pb-32 lg:pb-24">
+      <main className="flex-1 pb-28 lg:pb-24">
         {activeTab === 'surah' && (
           <SurahListView
             onSelectSurah={handleSelectSurah}
             lastRead={lastRead}
             onNavigateToHadith={() => setActiveTab('hadith')}
-            onNavigateToTajwid={() => {
-              setTajwidSection('tajwid');
-              setActiveTab('tajwid');
-            }}
-            onNavigateToGharib={() => {
-              setTajwidSection('gharib');
-              setActiveTab('tajwid');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onNavigateToTajwid={() => setActiveTab('tajwid')}
             onNavigateToProgress={() => setActiveTab('saved')}
             onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
             externalSearchQuery={surahListFilter.query}
@@ -474,6 +464,7 @@ export default function App() {
             onPlayAyahAudio={handlePlayAyahAudio}
             onPlaySurahFullAudio={handlePlaySurahFullAudio}
             onOpenShareModal={handleOpenShareModal}
+            onNavigateToTajwid={() => setActiveTab('tajwid')}
           />
         )}
 
@@ -485,11 +476,7 @@ export default function App() {
         )}
 
         {activeTab === 'tajwid' && (
-          <TajwidGuideView
-            initialSection={tajwidSection}
-            onSelectSurah={handleSelectSurah}
-            onPlayAyahAudio={handlePlayAyahAudio}
-          />
+          <TajwidGuideView onJumpToSurah={handleSelectSurah} />
         )}
 
         {activeTab === 'saved' && (
@@ -555,16 +542,16 @@ export default function App() {
       {/* Offline Connectivity Banner */}
       <OfflineIndicator />
 
-      {/* Mobile Bottom Thumb-Zone Navigation */}
+      {/* Mobile & Tablet Floating Dock Navigation */}
       <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {/* Minimalist Footer */}
-      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] py-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-6 text-center text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] py-6 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-6 text-center text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             Al-Qur'an Digital & Ensiklopedia Hadits · Terjemahan Resmi Kemenag RI & Murottal Syaikh Misyari Rasyid Al-Afasy
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-medium">
+          <div className="flex items-center gap-4 text-xs font-medium">
             <button onClick={() => setActiveTab('surah')} className="hover:underline cursor-pointer">
               114 Surah
             </button>
@@ -573,15 +560,8 @@ export default function App() {
               9 Kitab Hadits
             </button>
             <span aria-hidden="true">·</span>
-            <button
-              onClick={() => {
-                setTajwidSection('gharib');
-                setActiveTab('tajwid');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="hover:underline cursor-pointer"
-            >
-              Tajwid & Gharib
+            <button onClick={() => setActiveTab('tajwid')} className="hover:underline cursor-pointer">
+              Kaidah Tajwid
             </button>
           </div>
         </div>

@@ -292,7 +292,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   return (
     <aside
       aria-label="Pemutar Audio Murottal"
-      className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-0 inset-x-0 md:inset-x-4 lg:inset-x-0 md:max-w-3xl lg:max-w-none md:mx-auto z-40 px-3 sm:px-6 py-2 sm:py-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white/95 dark:bg-slate-900/95 [body.theme-sepia_&]:bg-[#f3ead7]/95 backdrop-blur-md border-t md:border lg:border-x-0 lg:border-b-0 border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] md:rounded-2xl lg:rounded-none shadow-2xl transition-all"
+      className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] md:bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-0 inset-x-0 md:inset-x-6 lg:inset-x-0 md:max-w-2xl md:mx-auto lg:max-w-none z-40 px-3 sm:px-6 py-2 sm:py-3 lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white/95 dark:bg-slate-900/95 [body.theme-sepia_&]:bg-[#f3ead7]/95 backdrop-blur-md border-t md:border lg:border-x-0 lg:border-b-0 border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] md:rounded-2xl lg:rounded-none shadow-2xl transition-all"
     >
       <div className="max-w-6xl mx-auto space-y-1 sm:space-y-2">
         

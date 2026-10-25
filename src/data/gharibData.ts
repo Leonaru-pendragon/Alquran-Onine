@@ -19,6 +19,8 @@ export interface GharibCategory {
   id: Exclude<GharibCategoryId, 'semua'>;
   nama: string;
   istilahArab: string;
+  warnaClass: string;
+  hexColor: string;
   ringkasan: string;
   pengertian: string;
   pedomanPraktis: string;
@@ -56,6 +58,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'imalah',
     nama: 'Imalah',
     istilahArab: 'الإمالة',
+    warnaClass: 'gharib-imalah',
+    hexColor: '#e11d48',
     ringkasan: 'Memiringkan bunyi fathah ke arah kasrah (vokal "e" seperti kata sate/sore).',
     pengertian:
       'Secara bahasa Imalah berarti memiringkan atau membengkokkan. Secara istilah qiraat, Imalah Kubra adalah memiringkan bunyi harakat fathah mendekati kasrah dan memiringkan alif mendekati ya, sehingga terdengar seperti vokal "e" pada kata "sate" atau "sore".',
@@ -66,6 +70,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'isymam',
     nama: 'Isymam',
     istilahArab: 'الإشمام',
+    warnaClass: 'gharib-isymam',
+    hexColor: '#9333ea',
     ringkasan: 'Memonyongkan kedua bibir di tengah dengung nun tasydid tanpa suara dhammah.',
     pengertian:
       'Isymam adalah memonyongkan kedua bibir ke depan (seperti posisi mengucapkan dhammah "u") sesaat setelah huruf disukunkan atau di tengah dengung idgham, tanpa mengeluarkan bunyi suara dhammah sedikit pun, sebagai isyarat bahwa asal huruf tersebut berharakat dhammah.',
@@ -76,6 +82,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'tashil',
     nama: 'Tashil',
     istilahArab: 'التسهيل',
+    warnaClass: 'gharib-tashil',
+    hexColor: '#c026d3',
     ringkasan: 'Meringankan bunyi hamzah kedua di antara bunyi hamzah dan alif.',
     pengertian:
       'Tashil menurut bahasa artinya memudahkan atau meringankan. Ketika dua hamzah qatha\' berharakat fathah bertemu berurutan dalam satu kata, hamzah pertama dibaca tegas sedangkan hamzah kedua dibaca lunak (antara hamzah dan huruf mad alif).',
@@ -86,6 +94,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'naql',
     nama: 'Naql',
     istilahArab: 'النقل',
+    warnaClass: 'gharib-naql',
+    hexColor: '#2563eb',
     ringkasan: 'Memindahkan harakat kasrah hamzah ke huruf lam sukun sebelumnya.',
     pengertian:
       'Naql berarti memindahkan harakat suatu huruf hidup ke huruf sukun sebelumnya untuk memudahkan pengucapan dua hamzah washal yang mengapit huruf lam ta\'rif.',
@@ -96,6 +106,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'saktah',
     nama: 'Saktah (4 Tempat)',
     istilahArab: 'السكتة',
+    warnaClass: 'gharib-saktah',
+    hexColor: '#ea580c',
     ringkasan: 'Berhenti sejenak ±2 harakat tanpa mengambil napas baru lalu melanjutkan bacaan.',
     pengertian:
       'Saktah adalah memutus suara sejenak sekira 2 harakat tanpa bernapas (menahan napas tetap di dalam) dengan niat langsung melanjutkan bacaan pada kata sesudahnya. Pada Mushaf Standar Indonesia ditandai dengan huruf Sin kecil (س / سكتة).',
@@ -106,6 +118,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'shifr',
     nama: 'Shifr Mustadir & Mustathil',
     istilahArab: 'الصفر المستدير والمستطيل',
+    warnaClass: 'gharib-shifr',
+    hexColor: '#d97706',
     ringkasan: 'Tanda bulatan kecil bundar (0) dan lonjong di atas huruf alif tambahan.',
     pengertian:
       'Shifr Mustadir (bulat bundar sempurna ۟) menandakan huruf alif tidak dibaca panjang baik ketika washal maupun waqaf. Sedangkan Shifr Mustathil (bulat lonjong berdiri ۠) menandakan alif dibaca pendek ketika washal (disambung), tetapi dibaca panjang 2 harakat ketika waqaf (berhenti).',
@@ -116,6 +130,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'nun_wiqayah',
     nama: 'Nun Wiqayah (Nun Kecil)',
     istilahArab: 'نون الوقاية',
+    warnaClass: 'gharib-nun-wiqayah',
+    hexColor: '#0d9488',
     ringkasan: 'Munculnya bunyi "ni" saat tanwin disambung dengan Hamzah Washal.',
     pengertian:
       'Nun Wiqayah (disebut juga Nun \'Iwadh atau Nun Washal) adalah huruf nun berharakat kasrah (نِ) yang muncul untuk menjaga bunyi tanwin ketika bertemu Hamzah Washal (ٱ) agar tidak terjadi pertemuan dua huruf sukun.',
@@ -126,6 +142,8 @@ export const GHARIB_CATEGORIES: GharibCategory[] = [
     id: 'shad_khusus',
     nama: 'Shad/Sin & Lafazh Khusus',
     istilahArab: 'فرش الحروف والكلمات الخاصة',
+    warnaClass: 'gharib-shad-khusus',
+    hexColor: '#4f46e5',
     ringkasan: 'Huruf Shad bertanda Sin kecil, Dhad tiga wajah/dua wajah, Idgham Ba ke Mim, & Ibtida\' khusus.',
     pengertian:
       'Mencakup kalimat-kalimat khusus dalam rasm Utsmani yang penulisannya berbeda dari bunyi bacaannya menurut Riwayat Hafsh, seperti huruf Shad yang ditulis dengan tanda Sin kecil di atas/bawahnya, variasi harakat Dhad pada QS. Ar-Rum: 54, serta kaidah ibtida\' pada QS. Al-Ahqaf: 4.',
@@ -656,7 +674,423 @@ export const GHARIB_AND_TAJWID_QUIZ: GharibQuizQuestion[] = [
 ];
 
 /**
- * Mengambil seluruh catatan Bacaan Gharib pada pasangan Surah & Ayat tertentu.
+ * Mengambil metadata kategori Bacaan Gharib beserta kelas warna & kode hex-nya.
+ */
+export function getGharibCategoryMeta(
+  kategoriId: Exclude<GharibCategoryId, 'semua'>
+): GharibCategory {
+  return GHARIB_CATEGORIES.find((c) => c.id === kategoriId) || GHARIB_CATEGORIES[0];
+}
+
+/**
+ * Menormalkan spasi sebelum tanda waqaf/saktah/nun-wiqayah mushaf agar tidak merender kotak .notdef
+ * dan tetap menjaga spasi antar-kata di Mushaf Kemenag RI maupun Utsmani.
+ */
+export function normalizeQuranicText(text: string): string {
+  return (
+    text
+      // 1. Nun Wiqayah Kemenag RI: spasi diikuti ۨ (U+06E8 + harakat opsional) sebelum Alif Washal -> tempelkan ke Alif Washal
+      .replace(/(^|\s+)\u06E8([\u064E-\u0652]?)([\u0627\u0671])/g, '$1$3\u06E8$2')
+      // 2. Tanda waqaf/saktah/ya-zawaid setelah spasi yang langsung diikuti huruf kata berikutnya -> tempel ke kata sebelumnya & beri spasi sesudahnya
+      .replace(
+        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\S)/g,
+        '$1$2 '
+      )
+      // 3. Tanda waqaf/saktah/ya-zawaid setelah spasi di akhir ayat atau sebelum spasi -> tempel ke kata sebelumnya
+      .replace(
+        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\s|$)/g,
+        '$1$2'
+      )
+  );
+}
+
+export interface DetectedGharibMatch {
+  id: string;
+  kategoriId: Exclude<GharibCategoryId, 'semua'>;
+  kategoriNama: string;
+  labelSingkat: string;
+  warnaClass: string;
+  hexColor: string;
+  lafazhArab: string;
+  caraBacaLatin: string;
+  panduanBaca: string;
+  hindariBacaan?: string;
+}
+
+export interface GharibPlaceholderToken {
+  placeholder: string;
+  segment: string;
+  kategoriId: Exclude<GharibCategoryId, 'semua'>;
+  kategoriNama: string;
+  warnaClass: string;
+  caraBacaSingkat: string;
+}
+
+interface RawGharibRuleSpec {
+  kategoriId: Exclude<GharibCategoryId, 'semua'>;
+  labelSingkat: string;
+  regex: RegExp;
+  filterMatch?: (matched: string) => boolean;
+  defaultCaraBaca: string;
+  defaultPanduan: string;
+}
+
+function isStandardUthmaniNonGharibZero(word: string): boolean {
+  // Abaikan wawu jama' biasa di rasm Utsmani (قَالُوا۟ / كَانُوا۟) dan kata tunjuk umum أُو۟لَٰٓئِكَ / أُو۟لُوا۟
+  if (/\u064F\u0648\u0627\u06DF/.test(word)) return true;
+  if (/[\u0623\u0627]\u064F\u0648\u06DF\u0644/.test(word)) return true;
+  return false;
+}
+
+function buildGharibRuleSpecs(surahNomor?: number, ayahNomor?: number): RawGharibRuleSpec[] {
+  const specs: RawGharibRuleSpec[] = [
+    // 1. IMALAH (tanda belah ketupat bawah ۪ U+06EA atau QS. Hud 11:41)
+    {
+      kategoriId: 'imalah',
+      labelSingkat: 'Imalah',
+      regex: /\S*\u06EA\S*|مَجْرَىٰهَا/g,
+      defaultCaraBaca: 'Majrēhā (bunyi Ra miring ke vokal "e" seperti kata sate/sore, 2 harakat)',
+      defaultPanduan:
+        'Imalah Kubra: miringkan bunyi fathah huruf Ra mendekati kasrah ("e" taling) sepanjang 2 harakat.'
+    },
+    // 2. ISYMAM (tanda belah ketupat atas ۫ U+06EB atau QS. Yusuf 12:11)
+    {
+      kategoriId: 'isymam',
+      labelSingkat: 'Isymam',
+      regex: /(?:لَا\s+)?\S*\u06EB\S*|لَا\s+تَأْمَن[َّ]+ا/g,
+      defaultCaraBaca: "Lā ta'mannā (kedua bibir dimonyongkan di tengah dengung nun tasydid tanpa bunyi 'u')",
+      defaultPanduan:
+        'Isymam: tahan dengung Nun tasydid 2–3 harakat sambil memonyongkan kedua bibir sebagai isyarat dhammah asal.'
+    },
+    // 3. TASHIL (tanda bulatan penuh ۬ U+06EC atau QS. Fussilat 41:44)
+    {
+      kategoriId: 'tashil',
+      labelSingkat: 'Tashil',
+      regex: /\S*\u06EC\S*|ءَأَعْجَمِ[ىي][ٌّ]*/g,
+      defaultCaraBaca: "A-a'jamiyyun (hamzah kedua dilunakkan antara bunyi hamzah dan alif)",
+      defaultPanduan:
+        'Tashil: ucapkan hamzah pertama tegas, lalu ringankan hamzah kedua secara lembut tanpa hentakan keras.'
+    },
+    // 4. NAQL (بِئْسَ الِاسْمُ / بِئْسَ ٱلِٱسْمُ di QS. Al-Hujurat 49:11)
+    {
+      kategoriId: 'naql',
+      labelSingkat: 'Naql',
+      regex: /بِئْسَ\s+[\u0627\u0671]لِ[\u0627\u0671]سْمُ/g,
+      defaultCaraBaca: "Bi'sal-ismu (harakat kasrah dipindahkan ke huruf Lam sebelumnya)",
+      defaultPanduan:
+        "Naql: sambungkan Sin fathah langsung ke Lam kasrah sehingga dibaca Bi'sal-ismu (bukan bi'sal-al-ismu)."
+    },
+    // 5. SAKTAH (tanda Sin kecil ۜ U+06DC bukan di atas huruf Shad)
+    {
+      kategoriId: 'saktah',
+      labelSingkat: 'Saktah',
+      regex: /\S*(?<!\u0635)\u06DC[\u06D6-\u06ED]*(?:\s+(?:﴿[٠-٩0-9]+﴾\s+)?\S+)?/g,
+      defaultCaraBaca: 'Berhenti sejenak ±2 harakat tanpa mengambil napas baru lalu lanjutkan bacaan',
+      defaultPanduan:
+        'Saktah: putus suara selama ±2 harakat dengan menahan napas (tanpa bernapas) sebelum melanjutkan kata berikutnya.'
+    },
+    // 6. SHAD BERTANDA SIN & YA' ZAWAID (صۣ / صۜ / َۧ)
+    {
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Shad/Sin',
+      regex: /\S*\u0635[\u06E3\u06DC]\S*/g,
+      defaultCaraBaca: 'Perhatikan tanda huruf Sin kecil pada huruf Shad (dibaca tipis Sin atau dua wajah)',
+      defaultPanduan:
+        'Huruf Shad bertanda Sin kecil: wajib dibaca Sin tipis pada يَبْصُطُ (2:245) & بَصْطَةً (7:69), serta boleh Shad/Sin pada الْمُصَيْطِرُوْنَ (52:37).'
+    },
+    {
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Lafazh Khusus',
+      regex: /\S*\u06E7\u064E\S*/g,
+      defaultCaraBaca: 'Washal: ātāniyallāhu (Ya fathah hidup) · Waqaf: ātān atau ātānī (dua wajah)',
+      defaultPanduan:
+        "Huruf Ya' tambahan (Ya' Zawaid): dibaca hidup berharakat fathah saat washal, dan boleh sukun atau mad 2 harakat saat waqaf."
+    },
+    // 7. SHIFR MUSTATHIL (bulatan lonjong berdiri ۠ U+06E0 di setiap surah, termasuk seluruh kata أَنَا۠)
+    {
+      kategoriId: 'shifr',
+      labelSingkat: 'Shifr Mustathil',
+      regex: /\S*\u06E0\S*/g,
+      defaultCaraBaca: 'Pendek 1 harakat saat disambung (washal) · Panjang 2 harakat hanya bila berhenti (waqaf)',
+      defaultPanduan:
+        'Shifr Mustathil (bulatan lonjong ۠): huruf Alif gugur/pendek ketika bacaan disambung (washal), dan hanya dibaca panjang 2 harakat apabila berhenti (waqaf) tepat pada kata ini.'
+    },
+    // 8. SHIFR MUSTADIR (bulatan bundar sempurna ۟ U+06DF di setiap surah, selain wawu jama' biasa)
+    {
+      kategoriId: 'shifr',
+      labelSingkat: 'Shifr Mustadir',
+      regex: /\S*\u06DF\S*/g,
+      filterMatch: (matched) => !isStandardUthmaniNonGharibZero(matched),
+      defaultCaraBaca: 'Dibaca pendek (huruf bertanda bulatan bundar tidak dibaca panjang baik washal maupun waqaf)',
+      defaultPanduan:
+        'Shifr Mustadir (bulatan bundar ۟): huruf tambahan dalam rasm mushaf ini dianggap tidak ada dalam pengucapan, sehingga tetap pendek baik saat washal maupun waqaf.'
+    },
+    // 9. NUN WIQAYAH (tanda nun kecil ۨ U+06E8 di setiap surah atau tanwin + hamzah washal)
+    {
+      kategoriId: 'nun_wiqayah',
+      labelSingkat: 'Nun Wiqayah',
+      regex: /(?:\S+\s+)?\S*\u06E8\S*|\S*[\u064B\u064C\u064D]\u0627?(?:\s+﴿[٠-٩0-9]+﴾)?\s+\u0671\S+/g,
+      defaultCaraBaca: 'Saat disambung (washal), tanwin masuk dengan tambahan bunyi kasrah "ni" (Nun Wiqayah)',
+      defaultPanduan:
+        'Nun Wiqayah (ن kecil): apabila bacaan disambung melewati tanwin menuju Hamzah Washal, tanwin berubah menjadi vokal tunggal diikuti bunyi "ni" agar tidak bertemu dua huruf sukun.'
+    },
+    // 10. LAFAZH KHUSUS LINTAS RASM (Utsmani & Kemenag RI)
+    {
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Idgham Khusus',
+      regex: /[\u0627\u0671]رْكَبْ?\s+م[َّ]+عَنَا/g,
+      defaultCaraBaca: "Irkam-ma'anā (Ba' sukun wajib lebur sempurna ke huruf Mim dengan dengung)",
+      defaultPanduan:
+        "Idgham Mutajanisain Kamil Bighunnah: jangan memantulkan Ba' (qalqalah), melainkan leburkan langsung ke Mim disertai dengung 2–3 harakat."
+    }
+  ];
+
+  // Konteks khusus berdasarkan nomor surah & ayat untuk kata yang tidak memiliki tanda diakritik unik tersendiri
+  if (surahNomor === 2 && ayahNomor === 245) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Shad -> Sin',
+      regex: /وَيَبْصُطُ\S*/g,
+      defaultCaraBaca: 'Wa yabsuṭu (wajib dibaca huruf Sin tipis)',
+      defaultPanduan: 'Huruf Shad pada وَيَبْصُطُ wajib dibaca tipis dengan makhraj Sin (س).'
+    });
+  }
+  if (surahNomor === 7 && ayahNomor === 69) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Shad -> Sin',
+      regex: /بَصْطَةً\S*/g,
+      defaultCaraBaca: 'Basṭatan (wajib dibaca huruf Sin sukun tipis)',
+      defaultPanduan: 'Huruf Shad pada بَصْطَةً wajib dibaca tipis dengan makhraj Sin (س).'
+    });
+  }
+  if (surahNomor === 52 && ayahNomor === 37) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Dua Wajah Shad/Sin',
+      regex: /[\u0627\u0671]لْمُصَيْطِرُوْ?نَ\S*/g,
+      defaultCaraBaca: 'Al-muṣaiṭirūn (Shad) atau Al-musaiṭirūn (Sin)',
+      defaultPanduan: 'Boleh dibaca tebal dengan huruf Shad (lebih masyhur) maupun tipis dengan huruf Sin.'
+    });
+  }
+  if (surahNomor === 88 && ayahNomor === 22) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Tetap Shad',
+      regex: /بِمُصَيْطِرٍ\S*/g,
+      defaultCaraBaca: 'Bimuṣaiṭir (wajib dibaca huruf Shad tebal, tidak boleh Sin)',
+      defaultPanduan:
+        'Berbeda dengan QS. Ath-Thur: 37, kata بِمُصَيْطِرٍ di QS. Al-Ghasyiyah: 22 wajib dibaca dengan huruf Shad tebal.'
+    });
+  }
+  if (surahNomor === 30 && ayahNomor === 54) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: 'Dhad Dua Wajah',
+      regex: /ضَعْف(?:ٍ|ًا)/g,
+      defaultCaraBaca: "Boleh fathah ketiganya (ḍa'f) atau dhammah ketiganya (ḍu'f) secara konsisten",
+      defaultPanduan:
+        "Tiga kata ضَعْف pada QS. Ar-Rum: 54 boleh dibaca fathah (ḍa'f) atau dhammah (ḍu'f) asalkan seragam ketiganya."
+    });
+  }
+  if (surahNomor === 46 && ayahNomor === 4) {
+    specs.push({
+      kategoriId: 'shad_khusus',
+      labelSingkat: "Ibtida' Khusus",
+      regex: /[\u0627\u0671]ئْتُوْ?نِ[يْى]\S*/g,
+      defaultCaraBaca: "Washal: fis-samāwāti'tūnī · Jika berhenti lalu mulai dari kata ini: Ītūnī",
+      defaultPanduan:
+        "Kaidah Ibdal saat Ibtida': jika berhenti pada السَّمَاوَاتِ lalu memulai dari ائْتُونِي, wajib dibaca panjang Ītūnī (bukan i'tūnī)."
+    });
+  }
+  if (surahNomor === 112 && ayahNomor === 1) {
+    specs.push({
+      kategoriId: 'nun_wiqayah',
+      labelSingkat: 'Nun Wiqayah (Washal)',
+      regex: /[أا]َحَدٌ\S*/g,
+      defaultCaraBaca: 'Waqaf: Aḥad · Jika disambung ke ayat 2: Aḥadunillāhuṣ-ṣamad',
+      defaultPanduan:
+        'Apabila menyambung akhir ayat 1 langsung ke awal ayat 2, muncul bunyi Nun Wiqayah ("ni"): aḥadunillāhuṣ-ṣamad.'
+    });
+  }
+  if (surahNomor === 69 && ayahNomor === 28) {
+    specs.push({
+      kategoriId: 'saktah',
+      labelSingkat: 'Saktah Jaizah',
+      regex: /مَالِيَهْ\S*/g,
+      defaultCaraBaca: 'Waqaf (utama) · Jika washal ke ayat 29: Saktah 2 harakat tanpa napas (māliyah — halaka)',
+      defaultPanduan:
+        'Saat menyambung QS. Al-Haqqah ayat 28 ke 29 (هَلَكَ), dianjurkan Saktah ±2 harakat agar Ha\' sukun tetap jelas.'
+    });
+  }
+
+  return specs;
+}
+
+/**
+ * Mengekstrak segmen lafazh Gharib dalam teks ayat menjadi token placeholder aman (\uE000N\uE001)
+ * agar pewarnaan Tajwid reguler tidak merusak tag HTML span Gharib.
+ */
+export function extractGharibPlaceholders(
+  normalizedText: string,
+  surahNomor?: number,
+  ayahNomor?: number
+): { textWithPlaceholders: string; tokens: GharibPlaceholderToken[] } {
+  const tokens: GharibPlaceholderToken[] = [];
+  let working = normalizedText;
+  const specs = buildGharibRuleSpecs(surahNomor, ayahNomor);
+
+  for (const spec of specs) {
+    const cat = getGharibCategoryMeta(spec.kategoriId);
+    working = working.replace(spec.regex, (matched) => {
+      // Jangan timpa segmen yang sudah dibungkus token placeholder Gharib sebelumnya
+      if (matched.includes('\uE000')) return matched;
+      if (spec.filterMatch && !spec.filterMatch(matched)) return matched;
+
+      const idx = tokens.length;
+      const placeholder = `\uE000${idx}\uE001`;
+      tokens.push({
+        placeholder,
+        segment: matched,
+        kategoriId: spec.kategoriId,
+        kategoriNama: cat.nama,
+        warnaClass: cat.warnaClass,
+        caraBacaSingkat: spec.defaultCaraBaca
+      });
+      return placeholder;
+    });
+  }
+
+  return { textWithPlaceholders: working, tokens };
+}
+
+/**
+ * Mendeteksi seluruh kemunculan Bacaan Gharib di sebuah ayat (berlaku otomatis di seluruh 114 surah),
+ * menggabungkan penjelasan kurasi spesifik ayat (bila tersedia) dengan detektor ortografi mushaf.
+ */
+export function detectAyahGharibMatches(
+  arabicText: string,
+  surahNomor?: number,
+  ayahNomor?: number
+): DetectedGharibMatch[] {
+  const normalized = normalizeQuranicText(arabicText);
+  const curatedItems =
+    surahNomor && ayahNomor ? getGharibBySurahAyah(surahNomor, ayahNomor) : [];
+
+  const results: DetectedGharibMatch[] = [];
+  const coveredCategories = new Set<string>();
+
+function getCuratedShortLabel(item: GharibVerseItem): string {
+  if (item.kategoriId === 'shad_khusus') {
+    if (item.judul.startsWith('Idgham')) return 'Idgham Khusus';
+    if (item.judul.includes('Dhad')) return 'Dhad Dua Wajah';
+    if (item.judul.startsWith('Ibtida')) return "Ibtida' Khusus";
+    return 'Shad/Sin';
+  }
+  if (item.kategoriId === 'nun_wiqayah') return 'Nun Wiqayah';
+  if (item.kategoriId === 'shifr') {
+    return item.judul.includes('Mustathil') ? 'Shifr Mustathil' : 'Shifr Mustadir';
+  }
+  return item.kategoriNama.split(' ')[0];
+}
+
+  // 1. Masukkan catatan kurasi spesifik ayat terlebih dahulu (memiliki penjelasan paling mendalam)
+  for (const item of curatedItems) {
+    const cat = getGharibCategoryMeta(item.kategoriId);
+    results.push({
+      id: item.id,
+      kategoriId: item.kategoriId,
+      kategoriNama: item.kategoriNama,
+      labelSingkat: getCuratedShortLabel(item),
+      warnaClass: cat.warnaClass,
+      hexColor: cat.hexColor,
+      lafazhArab: normalizeQuranicText(item.lafazhArab),
+      caraBacaLatin: item.caraBacaLatin,
+      panduanBaca: item.panduanBaca,
+      hindariBacaan: item.hindariBacaan
+    });
+    coveredCategories.add(item.kategoriId);
+  }
+
+  // 2. Pindai seluruh tanda Gharib di dalam teks Arab ayat (Shifr, Nun Wiqayah, Saktah, Imalah, dll di surah mana pun)
+  const specs = buildGharibRuleSpecs(surahNomor, ayahNomor);
+  for (const spec of specs) {
+    if (coveredCategories.has(spec.kategoriId)) continue;
+
+    const matches = normalized.match(spec.regex) || [];
+    const validMatches = matches.filter(
+      (m) => !spec.filterMatch || spec.filterMatch(m)
+    );
+
+    if (validMatches.length > 0) {
+      const cat = getGharibCategoryMeta(spec.kategoriId);
+      const uniqueLafazh = Array.from(new Set(validMatches.map((m) => m.trim()))).join(' · ');
+      results.push({
+        id: `auto-${surahNomor || 0}-${ayahNomor || 0}-${spec.kategoriId}-${spec.labelSingkat}`,
+        kategoriId: spec.kategoriId,
+        kategoriNama: cat.nama,
+        labelSingkat: spec.labelSingkat,
+        warnaClass: cat.warnaClass,
+        hexColor: cat.hexColor,
+        lafazhArab: uniqueLafazh,
+        caraBacaLatin: spec.defaultCaraBaca,
+        panduanBaca: spec.defaultPanduan
+      });
+      coveredCategories.add(spec.kategoriId);
+    }
+  }
+
+  return results;
+}
+
+export interface SurahGharibAyahEntry {
+  ayahNomor: number;
+  matches: DetectedGharibMatch[];
+}
+
+export interface SurahGharibSummary {
+  ayahEntries: SurahGharibAyahEntry[];
+  activeCategories: GharibCategory[];
+  totalOccurrences: number;
+}
+
+/**
+ * Memindai seluruh ayat dalam satu surah (1–114) untuk menemukan semua ayat yang memiliki Bacaan Gharib
+ * beserta daftar kategori warna yang aktif di surah tersebut.
+ */
+export function scanSurahGharibSummary(
+  surahNomor: number,
+  ayahs: Array<{ nomorAyat: number; teksArab: string }>
+): SurahGharibSummary {
+  const ayahEntries: SurahGharibAyahEntry[] = [];
+  const categorySet = new Set<Exclude<GharibCategoryId, 'semua'>>();
+  let totalOccurrences = 0;
+
+  for (const ayah of ayahs) {
+    const matches = detectAyahGharibMatches(ayah.teksArab, surahNomor, ayah.nomorAyat);
+    if (matches.length > 0) {
+      ayahEntries.push({
+        ayahNomor: ayah.nomorAyat,
+        matches
+      });
+      totalOccurrences += matches.length;
+      for (const m of matches) {
+        categorySet.add(m.kategoriId);
+      }
+    }
+  }
+
+  const activeCategories = GHARIB_CATEGORIES.filter((c) => categorySet.has(c.id));
+
+  return {
+    ayahEntries,
+    activeCategories,
+    totalOccurrences
+  };
+}
+
+/**
+ * Mengambil seluruh catatan Bacaan Gharib kurasi pada pasangan Surah & Ayat tertentu.
  */
 export function getGharibBySurahAyah(surahNomor: number, ayahNomor: number): GharibVerseItem[] {
   return GHARIB_ITEMS.filter(
@@ -665,7 +1099,7 @@ export function getGharibBySurahAyah(surahNomor: number, ayahNomor: number): Gha
 }
 
 /**
- * Mengambil daftar ayat Bacaan Gharib yang berada di dalam suatu Surah.
+ * Mengambil daftar ayat Bacaan Gharib kurasi yang berada di dalam suatu Surah.
  */
 export function getGharibBySurah(surahNomor: number): GharibVerseItem[] {
   return GHARIB_ITEMS.filter((item) => item.surahNomor === surahNomor);
@@ -688,7 +1122,13 @@ export function filterGharibItems(
   if (!trimmed) return baseList;
 
   // Jika pengguna mengetik "gharib", "ghorib", atau "musykilat", tampilkan seluruh daftar yang sesuai kategori
-  if (trimmed === 'gharib' || trimmed === 'ghorib' || trimmed === 'bacaan ghorib' || trimmed === 'bacaan gharib' || trimmed === 'musykilat') {
+  if (
+    trimmed === 'gharib' ||
+    trimmed === 'ghorib' ||
+    trimmed === 'bacaan ghorib' ||
+    trimmed === 'bacaan gharib' ||
+    trimmed === 'musykilat'
+  ) {
     return baseList;
   }
 

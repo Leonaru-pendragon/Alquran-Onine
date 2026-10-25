@@ -10,7 +10,9 @@ export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isIPadOS, setIsIPadOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -19,13 +21,17 @@ export function usePWAInstall() {
     const navStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone;
     setIsInstalled(detectStandaloneMode(standaloneQuery.matches, navStandalone));
 
+    const shortSide = Math.min(window.screen?.width || 0, window.screen?.height || 0);
     const platformInfo = detectMobilePlatform(
       window.navigator.userAgent || '',
       window.navigator.maxTouchPoints || 0,
-      window.navigator.platform || ''
+      window.navigator.platform || '',
+      shortSide
     );
     setIsIOS(platformInfo.isIOS);
+    setIsIPadOS(platformInfo.isIPadOS);
     setIsAndroid(platformInfo.isAndroid);
+    setIsTablet(platformInfo.isTablet);
 
     const handleDisplayModeChange = (ev: MediaQueryListEvent) => {
       if (ev.matches) setIsInstalled(true);
@@ -68,7 +74,9 @@ export function usePWAInstall() {
     isInstallable: Boolean(deferredPrompt),
     isInstalled,
     isIOS,
+    isIPadOS,
     isAndroid,
+    isTablet,
     install
   };
 }

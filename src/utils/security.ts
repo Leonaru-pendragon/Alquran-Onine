@@ -321,9 +321,11 @@ export function validateReadingSettings(raw: unknown): ReadingSettings | null {
     translationFontSize: Number.isFinite(translationFontSize) ? translationFontSize : 15,
     arabicFontFamily,
     showTajwid: typeof obj.showTajwid === 'boolean' ? obj.showTajwid : true,
+    ...(typeof obj.showGharib === 'boolean' ? { showGharib: obj.showGharib } : {}),
     showTranslation: typeof obj.showTranslation === 'boolean' ? obj.showTranslation : true,
     showLatin: typeof obj.showLatin === 'boolean' ? obj.showLatin : true,
-    autoScrollAudio: typeof obj.autoScrollAudio === 'boolean' ? obj.autoScrollAudio : true
+    autoScrollAudio: typeof obj.autoScrollAudio === 'boolean' ? obj.autoScrollAudio : true,
+    ...(typeof obj.keepScreenAwake === 'boolean' ? { keepScreenAwake: obj.keepScreenAwake } : {})
   };
 }
 
