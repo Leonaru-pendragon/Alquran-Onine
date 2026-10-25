@@ -417,19 +417,55 @@ export async function createAppServer() {
     res.json({ ok: true, updatedAt: nextState.updatedAt });
   });
 
-  // Serve pre-built gh-pages fallback assets if present (for subpath verification)
+  // Serve pre-built gh-pages fallback assets and /public mirror (for GitHub Pages root mode verification)
   const ghFallbackDir = path.join(__dirname, 'gh-pages-app');
   if (fs.existsSync(ghFallbackDir)) {
     app.use('/gh-pages-app', express.static(ghFallbackDir));
   }
+  const publicDir = path.join(__dirname, 'public');
+  if (fs.existsSync(publicDir)) {
+    app.use('/public', express.static(publicDir));
+  }
+  app.get('/gh-pages-preview', (_req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+  });
 
   // Mount Vite in development or serve static dist in production
   if (process.env.NODE_ENV !== 'production') {
+    if (!process.env.DISABLE_HMR) {
+      process.env.DISABLE_HMR = 'true';
+    }
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+        ws: false
+      },
       appType: 'spa'
     });
+
+    app.get('/@vite/client', async (req, res, next) => {
+      try {
+        const result = await vite.transformRequest(req.originalUrl || '/@vite/client');
+        if (!result?.code) {
+          next();
+          return;
+        }
+        const patchedCode = result.code
+          .replace('console.debug("[vite] connecting...");', '')
+          .replace(
+            'const createWebSocketModuleRunnerTransport = (options) => {',
+            'const createWebSocketModuleRunnerTransport = (options) => { return { async connect() {}, disconnect() {}, send() {} };'
+          );
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-store');
+        res.status(200).send(patchedCode);
+      } catch (err) {
+        next(err);
+      }
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(__dirname, 'dist');

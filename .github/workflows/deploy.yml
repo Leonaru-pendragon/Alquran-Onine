@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -34,33 +34,42 @@ jobs:
       - name: Install dependencies
         run: bun install || npm install --legacy-peer-deps
 
-      - name: Build production bundle
+      - name: Build production & fallback bundles
         run: |
-          bun run build
+          npm run build
           touch dist/.nojekyll
           cp dist/index.html dist/404.html
 
-      - name: Deploy to gh-pages branch
+      - name: Update gh-pages branch (Branch deploy mode)
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
 
-      - name: Configure GitHub Pages (Actions mode if enabled)
-        id: configure_pages
+      - name: Upload Pages artifact (Actions deploy mode)
         continue-on-error: true
-        uses: actions/configure-pages@v4
-        with:
-          enablement: true
-
-      - name: Upload Pages artifact
-        if: steps.configure_pages.outcome == 'success'
         uses: actions/upload-pages-artifact@v3
         with:
           path: './dist'
 
-      - name: Deploy to GitHub Pages (Actions mode)
+  deploy-pages:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        id: configure_pages
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Deploy to GitHub Pages
         id: deployment
         if: steps.configure_pages.outcome == 'success'
         continue-on-error: true

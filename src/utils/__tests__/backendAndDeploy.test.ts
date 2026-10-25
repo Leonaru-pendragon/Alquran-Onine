@@ -1,9 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { detectStaticHost } from '../../services/quranApi';
-import { renderTajwidHtml } from '../../data/tajwidRules';
+import { renderTajwidHtml, resolveTajwidPdfUrl, TAJWID_BOOK_META } from '../../data/tajwidRules';
 import { createAppServer } from '../../../server';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '../../..');
 
 test('detectStaticHost identifies GitHub Pages and fallback bootloader mode accurately', () => {
   assert.equal(detectStaticHost('leonaru-pendragon.github.io', false), true);
@@ -11,6 +18,45 @@ test('detectStaticHost identifies GitHub Pages and fallback bootloader mode accu
   assert.equal(detectStaticHost('alquran.pages.dev', false), true);
   assert.equal(detectStaticHost('localhost', false), false);
   assert.equal(detectStaticHost('localhost', true), true);
+});
+
+test('resolveTajwidPdfUrl uses relative subpath-safe URLs for both GitHub Actions dist and root fallback modes', () => {
+  assert.equal(TAJWID_BOOK_META.pdfUrl.startsWith('./assets/aistudio/'), true);
+  assert.equal(resolveTajwidPdfUrl(false).startsWith('./assets/aistudio/'), true);
+  assert.equal(resolveTajwidPdfUrl(true).startsWith('./public/assets/aistudio/'), true);
+
+  const diskPdfPath = path.join(ROOT_DIR, resolveTajwidPdfUrl(true));
+  assert.equal(fs.existsSync(diskPdfPath), true, 'Qiraati PDF file must exist in public/assets/aistudio');
+});
+
+test('GitHub Pages fallback bundle and index.html cache-busting build hash are in sync with latest Qiraati content', () => {
+  const indexHtml = fs.readFileSync(path.join(ROOT_DIR, 'index.html'), 'utf8');
+  const buildIdMatch = indexHtml.match(/window\.__APP_BUILD_ID__\s*=\s*'([a-f0-9]{10})'/);
+  assert.ok(buildIdMatch, 'index.html must contain a 10-char hex __APP_BUILD_ID__');
+
+  const buildId = buildIdMatch[1];
+  assert.ok(
+    indexHtml.includes(`./gh-pages-app/app.css?v=${buildId}`),
+    'index.html must reference cache-busted app.css?v=<buildId>'
+  );
+  assert.ok(
+    indexHtml.includes(`./gh-pages-app/app.js?v=${buildId}`),
+    'index.html must reference cache-busted app.js?v=<buildId>'
+  );
+
+  const appJsPath = path.join(ROOT_DIR, 'gh-pages-app', 'app.js');
+  assert.equal(fs.existsSync(appJsPath), true, 'gh-pages-app/app.js must exist');
+  const appJsContent = fs.readFileSync(appJsPath, 'utf8');
+  assert.equal(
+    appJsContent.includes('Dachlan Salim Zarkasyi'),
+    true,
+    'gh-pages-app/app.js must include the latest Qiraati PDF Tajwid content'
+  );
+  assert.equal(
+    appJsContent.includes('Pelajaran Ilmu Tajwid Praktis'),
+    true,
+    'gh-pages-app/app.js must include Pelajaran Ilmu Tajwid Praktis title'
+  );
 });
 
 test('renderTajwidHtml attaches space-preceded Quranic combining waqf/saktah marks to preceding glyph', () => {

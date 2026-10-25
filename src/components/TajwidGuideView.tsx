@@ -25,7 +25,8 @@ import {
   TAJWID_QUIZ_QUESTIONS,
   renderTajwidHtml,
   analyzeTajwidOccurrences,
-  getTajwidRuleById
+  getTajwidRuleById,
+  resolveTajwidPdfUrl
 } from '../data/tajwidRules';
 
 type TajwidSectionTab = 'pelajaran' | 'soal-buku' | 'lab' | 'kuis' | 'pdf';
@@ -1114,7 +1115,7 @@ export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah 
             </div>
 
             <a
-              href={TAJWID_BOOK_META.pdfUrl}
+              href={resolveTajwidPdfUrl()}
               download="Pelajaran-Ilmu-Tajwid-Praktis-Qiraati.pdf"
               className="min-h-10 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
@@ -1125,7 +1126,7 @@ export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah 
 
           <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900">
             <iframe
-              src={TAJWID_BOOK_META.pdfUrl}
+              src={resolveTajwidPdfUrl()}
               title="Pembaca PDF Pelajaran Ilmu Tajwid Praktis"
               className="w-full h-[72vh] min-h-[520px] border-0"
             />

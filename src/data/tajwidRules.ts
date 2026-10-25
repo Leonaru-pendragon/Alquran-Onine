@@ -6,15 +6,29 @@ import {
 import { escapeHtml } from '../utils/security';
 import { extractGharibPlaceholders, normalizeQuranicText } from './gharibData';
 
+export const TAJWID_PDF_FILENAME =
+  'pdf-p-classtruncatedtext-module-lineclamped-85ulhh-style-max-lines5tajwid-praktis-p_compress_91d71235.pdf';
+
 export const TAJWID_BOOK_META = {
   judul: 'Pelajaran Ilmu Tajwid Praktis',
   subjudul: "Untuk TK. Al-Qur'an — Metode Qira'ati (قِرَاءَتِي)",
   penyusun: 'H. Dachlan Salim Zarkasyi',
   jumlahPelajaran: 13,
   jumlahHalaman: 37,
-  pdfUrl:
-    '/assets/aistudio/pdf-p-classtruncatedtext-module-lineclamped-85ulhh-style-max-lines5tajwid-praktis-p_compress_91d71235.pdf'
+  pdfUrl: `./assets/aistudio/${TAJWID_PDF_FILENAME}`
 } as const;
+
+export function resolveTajwidPdfUrl(isRootFallback?: boolean): string {
+  const fallbackActive =
+    typeof isRootFallback === 'boolean'
+      ? isRootFallback
+      : typeof window !== 'undefined' &&
+        Boolean((window as unknown as { __GH_FALLBACK_LOADED__?: boolean }).__GH_FALLBACK_LOADED__);
+
+  return fallbackActive
+    ? `./public/assets/aistudio/${TAJWID_PDF_FILENAME}`
+    : `./assets/aistudio/${TAJWID_PDF_FILENAME}`;
+}
 
 export const TAJWID_CATEGORIES = [
   'Semua Pelajaran',

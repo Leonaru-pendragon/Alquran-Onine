@@ -27,7 +27,7 @@ export default defineConfig({
     rollupOptions: {
       input: path.resolve(__dirname, 'src/main.tsx'),
       output: {
-        inlineDynamicImports: true,
+        codeSplitting: false,
         entryFileNames: 'app.js',
         assetFileNames: (assetInfo) => {
           if (assetInfo.names?.some((n) => n.endsWith('.css')) || assetInfo.name?.endsWith('.css')) {
