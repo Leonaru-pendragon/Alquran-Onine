@@ -10,7 +10,6 @@ import { SettingsModal } from './components/SettingsModal';
 import { ShareAyahModal } from './components/ShareAyahModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { VoiceSearchModal } from './components/VoiceSearchModal';
-import { DownloadAppModal } from './components/DownloadAppModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme, QariId } from './types/quran';
@@ -18,7 +17,6 @@ import { toggleBookmarkItem } from './utils/quranLogic';
 import { VoiceSearchResult } from './utils/voiceCommandParser';
 import { getThemeStatusBarColor } from './utils/mobilePlatform';
 import { useScreenWakeLock } from './hooks/useScreenWakeLock';
-import { useMobileDeviceTarget } from './hooks/useMobileDeviceTarget';
 import {
   DEFAULT_QARI_ID,
   getQariById,
@@ -303,11 +301,8 @@ export default function App() {
     });
   }, [activeQariId]);
 
-  // Modals & Mobile/Tablet Device Eligibility
-  const mobileDeviceTarget = useMobileDeviceTarget();
-  const isMobileOrTablet = Boolean(mobileDeviceTarget);
+  // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [quickSearchInitialQuery, setQuickSearchInitialQuery] = useState('');
@@ -612,7 +607,6 @@ export default function App() {
         theme={settings.theme}
         setTheme={setTheme}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
         onQuickSearch={() => {
           setQuickSearchInitialQuery('');
           setIsQuickSearchOpen(true);
@@ -630,7 +624,6 @@ export default function App() {
             onNavigateToTajwid={() => handleNavigateTab('tajwid')}
             onNavigateToProgress={() => handleNavigateTab('saved')}
             onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
-            onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
             externalSearchQuery={surahListFilter.query}
             initialFilter={surahListFilter.filter}
           />
@@ -715,13 +708,6 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onUpdateSettings={updateSettings}
-        onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
-      />
-
-      {/* Mobile & Tablet APK / IPA Download Modal */}
-      <DownloadAppModal
-        isOpen={isMobileOrTablet && isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
       />
 
       {/* Quick Search Modal */}
@@ -763,7 +749,7 @@ export default function App() {
           <p>
             Al-Qur'an Digital & Ensiklopedia Hadits · Terjemahan Resmi Kemenag RI & Murottal {activeQari.nama}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-medium">
+          <div className="flex items-center gap-4 text-xs font-medium">
             <button onClick={() => handleNavigateTab('surah')} className="hover:underline cursor-pointer">
               114 Surah
             </button>
@@ -775,17 +761,6 @@ export default function App() {
             <button onClick={() => handleNavigateTab('tajwid')} className="hover:underline cursor-pointer">
               Kaidah Tajwid
             </button>
-            {isMobileOrTablet && (
-              <>
-                <span aria-hidden="true">·</span>
-                <button
-                  onClick={() => setIsDownloadModalOpen(true)}
-                  className="text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] hover:underline cursor-pointer"
-                >
-                  Unduh Aplikasi
-                </button>
-              </>
-            )}
           </div>
         </div>
       </footer>

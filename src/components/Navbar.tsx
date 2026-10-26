@@ -1,5 +1,5 @@
 import React from 'react';
-import { Moon, Sun, Coffee, Settings2, Search, Mic, Download } from 'lucide-react';
+import { BookOpen, BookMarked, Sparkles, Moon, Sun, Coffee, Settings2, Search, Mic } from 'lucide-react';
 import { ReadingTheme } from '../types/quran';
 
 interface NavbarProps {
@@ -10,7 +10,6 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onQuickSearch: () => void;
   onOpenVoiceSearch: () => void;
-  onOpenDownloadModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,8 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setTheme,
   onOpenSettings,
   onQuickSearch,
-  onOpenVoiceSearch,
-  onOpenDownloadModal
+  onOpenVoiceSearch
 }) => {
   const toggleTheme = () => {
     if (theme === 'light') setTheme('sepia');
@@ -150,19 +148,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               {theme === 'dark' ? 'Malam' : theme === 'sepia' ? 'Sepia' : 'Terang'}
             </span>
           </button>
-
-          {onOpenDownloadModal && (
-            <button
-              type="button"
-              onClick={onOpenDownloadModal}
-              aria-label="Unduh Aplikasi Sesuai Perangkat"
-              title="Unduh Aplikasi Sesuai Perangkat (HP, Tablet, Laptop)"
-              className="hidden sm:flex min-w-11 min-h-11 lg:min-w-0 lg:min-h-0 items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 [body.theme-sepia_&]:text-[#4d3c2a] border border-emerald-200 dark:border-emerald-800/80 [body.theme-sepia_&]:border-[#dec9a5] hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-            >
-              <Download className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden md:inline lg:hidden xl:inline">Unduh</span>
-            </button>
-          )}
 
           <button
             onClick={onOpenSettings}
