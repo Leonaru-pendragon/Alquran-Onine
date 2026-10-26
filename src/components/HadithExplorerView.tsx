@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, BookOpen, Bookmark, Copy, Check, Filter, Share2, Sparkles, X } from 'lucide-react';
 import { HadithItem, BookmarkItem, HadithBook } from '../types/quran';
 import { HADITH_BOOKS, HADITH_CATEGORIES, COMPREHENSIVE_HADITHS } from '../data/hadithsData';
@@ -7,17 +7,39 @@ import { filterHadiths, isHadithBookmarked } from '../utils/quranLogic';
 interface HadithExplorerViewProps {
   bookmarks: BookmarkItem[];
   onToggleBookmark: (item: Omit<BookmarkItem, 'id' | 'timestamp'>) => void;
+  initialBookSlug?: string;
+  onBookSlugChange?: (slug: string) => void;
+}
+
+function resolveValidBookSlug(slug?: string): string {
+  if (!slug || slug === 'semua') return 'semua';
+  return HADITH_BOOKS.some((b) => b.slug === slug) ? slug : 'semua';
 }
 
 export const HadithExplorerView: React.FC<HadithExplorerViewProps> = ({
   bookmarks,
-  onToggleBookmark
+  onToggleBookmark,
+  initialBookSlug = 'semua',
+  onBookSlugChange
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedBookSlug, setSelectedBookSlug] = useState<string>('semua');
+  const [selectedBookSlug, setSelectedBookSlug] = useState<string>(() =>
+    resolveValidBookSlug(initialBookSlug)
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua Topik');
   const [copiedHadithId, setCopiedHadithId] = useState<string | null>(null);
   const [selectedHadithDetail, setSelectedHadithDetail] = useState<HadithItem | null>(null);
+
+  useEffect(() => {
+    const next = resolveValidBookSlug(initialBookSlug);
+    setSelectedBookSlug((prev) => (prev === next ? prev : next));
+  }, [initialBookSlug]);
+
+  const handleSelectBook = (slug: string) => {
+    const valid = resolveValidBookSlug(slug);
+    setSelectedBookSlug(valid);
+    onBookSlugChange?.(valid);
+  };
 
   // Filter Hadiths
   const filteredHadiths = useMemo(() => {
@@ -92,7 +114,7 @@ export const HadithExplorerView: React.FC<HadithExplorerViewProps> = ({
           </label>
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
             <button
-              onClick={() => setSelectedBookSlug('semua')}
+              onClick={() => handleSelectBook('semua')}
               className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap cursor-pointer transition-all border ${
                 selectedBookSlug === 'semua'
                   ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs'
@@ -104,7 +126,7 @@ export const HadithExplorerView: React.FC<HadithExplorerViewProps> = ({
             {HADITH_BOOKS.map((book) => (
               <button
                 key={book.slug}
-                onClick={() => setSelectedBookSlug(book.slug)}
+                onClick={() => handleSelectBook(book.slug)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg whitespace-nowrap cursor-pointer transition-all border ${
                   selectedBookSlug === book.slug
                     ? 'bg-emerald-600 text-white border-emerald-600 font-semibold shadow-xs'

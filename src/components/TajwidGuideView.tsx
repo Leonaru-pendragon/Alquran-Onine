@@ -75,10 +75,25 @@ function renderFormulaText(formula: string, compact: boolean = false): React.Rea
 
 interface TajwidGuideViewProps {
   onJumpToSurah?: (surahNomor: number, ayahNomor?: number) => void;
+  initialSection?: TajwidSectionTab;
+  onSectionChange?: (section: TajwidSectionTab) => void;
 }
 
-export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah }) => {
-  const [activeSection, setActiveSection] = useState<TajwidSectionTab>('pelajaran');
+export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({
+  onJumpToSurah,
+  initialSection = 'pelajaran',
+  onSectionChange
+}) => {
+  const [activeSection, setActiveSection] = useState<TajwidSectionTab>(initialSection);
+
+  useEffect(() => {
+    setActiveSection((prev) => (prev === initialSection ? prev : initialSection));
+  }, [initialSection]);
+
+  const handleSelectSection = (nextSection: TajwidSectionTab) => {
+    setActiveSection(nextSection);
+    onSectionChange?.(nextSection);
+  };
 
   // Section 1: Pelajaran 1–13 state
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua Pelajaran');
@@ -223,7 +238,7 @@ export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah 
     setSelectedCategory('Semua Pelajaran');
     setRuleSearch('');
     setSelectedRuleId(ruleId);
-    setActiveSection('pelajaran');
+    handleSelectSection('pelajaran');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -325,7 +340,7 @@ export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
           <button
             type="button"
-            onClick={() => setActiveSection('pdf')}
+            onClick={() => handleSelectSection('pdf')}
             className="min-h-11 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold inline-flex items-center gap-2 cursor-pointer transition-colors whitespace-nowrap"
           >
             <FileText className="w-4 h-4 shrink-0" />
@@ -348,7 +363,7 @@ export const TajwidGuideView: React.FC<TajwidGuideViewProps> = ({ onJumpToSurah 
               type="button"
               role="tab"
               aria-selected={isActive}
-              onClick={() => setActiveSection(id)}
+              onClick={() => handleSelectSection(id)}
               className={`min-h-11 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap shrink-0 inline-flex items-center gap-2 cursor-pointer ${
                 isActive
                   ? 'bg-emerald-600 text-white shadow-xs sm:bg-white sm:dark:bg-slate-800 sm:text-emerald-700 sm:dark:text-emerald-300 [body.theme-sepia_&]:sm:bg-[#fbf5e8]'

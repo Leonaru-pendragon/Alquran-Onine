@@ -14,6 +14,9 @@ export function setupAutoServiceWorkerRefresh(): void {
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadExistingController) return;
+    // Never interrupt active murottal audio playback with an automatic SW reload
+    const bgAudio = document.getElementById('quran-background-audio') as HTMLAudioElement | null;
+    if (bgAudio && !bgAudio.paused) return;
     try {
       if (sessionStorage.getItem(SW_RELOAD_SESSION_KEY) === '1') return;
       sessionStorage.setItem(SW_RELOAD_SESSION_KEY, '1');

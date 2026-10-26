@@ -1,4 +1,4 @@
-import type { SurahDetail, Ayah, SurahTafsirDetail } from '../types/quran.ts';
+import type { SurahDetail, Ayah, SurahTafsirDetail, QariId, QariOption } from '../types/quran.ts';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata.ts';
 
 // In-memory cache for loaded surahs
@@ -9,22 +9,129 @@ const tafsirCache = new Map<number, SurahTafsirDetail>();
 const STORAGE_PREFIX = 'quran_surah_cache_v1_';
 const TAFSIR_STORAGE_PREFIX = 'quran_tafsir_cache_v1_';
 
-// Audio URL generators with high-reliability CDN endpoints
-export function getAyahAudioUrl(surahNomor: number, ayahNomor: number): string {
-  const s = String(surahNomor).padStart(3, '0');
-  const a = String(ayahNomor).padStart(3, '0');
-  return `https://cdn.equran.id/audio-partial/Misyari-Rasyid-Al-Afasi/${s}${a}.mp3`;
+export const DEFAULT_QARI_ID: QariId = 'mishari_alafasy';
+
+export const QARI_OPTIONS: readonly QariOption[] = [
+  {
+    id: 'abdul_basit',
+    nama: 'Abdul Basit Abdus Samad',
+    namaArab: 'عبد الباسط عبد الصمد',
+    keterangan: 'Murattal Klasik Mesir'
+  },
+  {
+    id: 'mishari_alafasy',
+    nama: 'Mishari Rasyid al-Afasy',
+    namaArab: 'مشاري راشد العفاسي',
+    keterangan: 'Murattal Tartil Kuwait'
+  },
+  {
+    id: 'abdurrahman_assudais',
+    nama: 'Abdul-Rahman Al-Sudais',
+    namaArab: 'عبد الرحمن السديس',
+    keterangan: 'Imam Masjidil Haram'
+  },
+  {
+    id: 'maher_almuaiqly',
+    nama: 'Maher Al-Muaiqly',
+    namaArab: 'ماهر المعيقلي',
+    keterangan: 'Imam Masjidil Haram'
+  },
+  {
+    id: 'saad_alghamdi',
+    nama: 'Saad Al-Ghamdi',
+    namaArab: 'سعد الغامدي',
+    keterangan: 'Murattal Tartil Dammam'
+  }
+];
+
+interface QariCdnConfig {
+  ayahUrl: (s: string, a: string) => string;
+  ayahFallbackUrl: (s: string, a: string) => string;
+  surahFullUrl: (s: string) => string;
+  surahFullFallbackUrl: (s: string) => string;
 }
 
-export function getAyahFallbackAudioUrl(surahNomor: number, ayahNomor: number): string {
-  const s = String(surahNomor).padStart(3, '0');
-  const a = String(ayahNomor).padStart(3, '0');
-  return `https://everyayah.com/data/Alafasy_128kbps/${s}${a}.mp3`;
+const QARI_CDN_MAP: Record<QariId, QariCdnConfig> = {
+  abdul_basit: {
+    ayahUrl: (s, a) => `https://everyayah.com/data/Abdul_Basit_Murattal_192kbps/${s}${a}.mp3`,
+    ayahFallbackUrl: (s, a) => `https://everyayah.com/data/AbdulSamad_64kbps_QuranExplorer.Com/${s}${a}.mp3`,
+    surahFullUrl: (s) => `https://download.quranicaudio.com/quran/abdul_basit_murattal/${s}.mp3`,
+    surahFullFallbackUrl: (s) => `https://server7.mp3quran.net/basit/${s}.mp3`
+  },
+  mishari_alafasy: {
+    ayahUrl: (s, a) => `https://cdn.equran.id/audio-partial/Misyari-Rasyid-Al-Afasi/${s}${a}.mp3`,
+    ayahFallbackUrl: (s, a) => `https://everyayah.com/data/Alafasy_128kbps/${s}${a}.mp3`,
+    surahFullUrl: (s) => `https://cdn.equran.id/audio-full/Misyari-Rasyid-Al-Afasi/${s}.mp3`,
+    surahFullFallbackUrl: (s) => `https://download.quranicaudio.com/quran/mishaari_raashid_al_3afaasee/${s}.mp3`
+  },
+  abdurrahman_assudais: {
+    ayahUrl: (s, a) => `https://cdn.equran.id/audio-partial/Abdurrahman-as-Sudais/${s}${a}.mp3`,
+    ayahFallbackUrl: (s, a) => `https://everyayah.com/data/Abdurrahmaan_As-Sudais_192kbps/${s}${a}.mp3`,
+    surahFullUrl: (s) => `https://cdn.equran.id/audio-full/Abdurrahman-as-Sudais/${s}.mp3`,
+    surahFullFallbackUrl: (s) => `https://server11.mp3quran.net/sds/${s}.mp3`
+  },
+  maher_almuaiqly: {
+    ayahUrl: (s, a) => `https://everyayah.com/data/MaherAlMuaiqly128kbps/${s}${a}.mp3`,
+    ayahFallbackUrl: (s, a) => `https://everyayah.com/data/Maher_AlMuaiqly_64kbps/${s}${a}.mp3`,
+    surahFullUrl: (s) => `https://download.quranicaudio.com/quran/maher_256/${s}.mp3`,
+    surahFullFallbackUrl: (s) => `https://server12.mp3quran.net/maher/${s}.mp3`
+  },
+  saad_alghamdi: {
+    ayahUrl: (s, a) => `https://everyayah.com/data/Ghamadi_40kbps/${s}${a}.mp3`,
+    ayahFallbackUrl: (s, a) => `https://everyayah.com/data/Ghamadi_40kbps/${s}${a}.mp3`,
+    surahFullUrl: (s) => `https://download.quranicaudio.com/quran/sa3d_al-ghaamidi/complete/${s}.mp3`,
+    surahFullFallbackUrl: (s) => `https://server7.mp3quran.net/s_gmd/${s}.mp3`
+  }
+};
+
+export function isValidQariId(value: unknown): value is QariId {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(QARI_CDN_MAP, value);
 }
 
-export function getSurahFullAudioUrl(surahNomor: number): string {
+export function getQariById(qariId?: string | null): QariOption {
+  const safeId: QariId = isValidQariId(qariId) ? qariId : DEFAULT_QARI_ID;
+  return QARI_OPTIONS.find((q) => q.id === safeId) || QARI_OPTIONS[1];
+}
+
+// Audio URL generators with high-reliability CDN endpoints for all 5 Qaris
+export function getAyahAudioUrl(
+  surahNomor: number,
+  ayahNomor: number,
+  qariId: QariId = DEFAULT_QARI_ID
+): string {
   const s = String(surahNomor).padStart(3, '0');
-  return `https://cdn.equran.id/audio-full/Misyari-Rasyid-Al-Afasi/${s}.mp3`;
+  const a = String(ayahNomor).padStart(3, '0');
+  const safeQari = isValidQariId(qariId) ? qariId : DEFAULT_QARI_ID;
+  return QARI_CDN_MAP[safeQari].ayahUrl(s, a);
+}
+
+export function getAyahFallbackAudioUrl(
+  surahNomor: number,
+  ayahNomor: number,
+  qariId: QariId = DEFAULT_QARI_ID
+): string {
+  const s = String(surahNomor).padStart(3, '0');
+  const a = String(ayahNomor).padStart(3, '0');
+  const safeQari = isValidQariId(qariId) ? qariId : DEFAULT_QARI_ID;
+  return QARI_CDN_MAP[safeQari].ayahFallbackUrl(s, a);
+}
+
+export function getSurahFullAudioUrl(
+  surahNomor: number,
+  qariId: QariId = DEFAULT_QARI_ID
+): string {
+  const s = String(surahNomor).padStart(3, '0');
+  const safeQari = isValidQariId(qariId) ? qariId : DEFAULT_QARI_ID;
+  return QARI_CDN_MAP[safeQari].surahFullUrl(s);
+}
+
+export function getSurahFullFallbackAudioUrl(
+  surahNomor: number,
+  qariId: QariId = DEFAULT_QARI_ID
+): string {
+  const s = String(surahNomor).padStart(3, '0');
+  const safeQari = isValidQariId(qariId) ? qariId : DEFAULT_QARI_ID;
+  return QARI_CDN_MAP[safeQari].surahFullFallbackUrl(s);
 }
 
 export function detectStaticHost(hostname: string, fallbackLoaded = false): boolean {

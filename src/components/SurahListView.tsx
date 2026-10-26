@@ -13,6 +13,7 @@ interface SurahListViewProps {
   onNavigateToTajwid: () => void;
   onNavigateToProgress?: () => void;
   onOpenVoiceSearch?: () => void;
+  onOpenDownloadModal?: () => void;
   externalSearchQuery?: string;
   initialFilter?: 'Semua' | 'Makkiyyah' | 'Madaniyyah' | 'Juz';
 }
@@ -24,6 +25,7 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
   onNavigateToTajwid,
   onNavigateToProgress,
   onOpenVoiceSearch,
+  onOpenDownloadModal,
   externalSearchQuery,
   initialFilter
 }) => {
@@ -63,8 +65,8 @@ export const SurahListView: React.FC<SurahListViewProps> = ({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       
-      {/* Android & iOS Home Screen Install Banner (auto-hidden if already installed) */}
-      <PWAInstallButton variant="banner" />
+      {/* Device-Matched App Download & Home Screen Install Banner */}
+      <PWAInstallButton variant="banner" onOpenDownloadModal={onOpenDownloadModal} />
 
       {/* Hero: Lanjutkan Membaca Card (if history exists) */}
       {lastRead && (

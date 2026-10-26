@@ -156,12 +156,13 @@ describe('Network Origin & HTTPS URL Allowlisting', () => {
 });
 
 describe('Storage & Import Schema Validation', () => {
-  it('clamps out-of-range font sizes and invalid themes in validateReadingSettings', () => {
+  it('clamps out-of-range font sizes and invalid themes/qariIds in validateReadingSettings', () => {
     const settings = validateReadingSettings({
       theme: 'hacker-green',
       arabicFontSize: 999,
       translationFontSize: 2,
       arabicFontFamily: 'unknown-font',
+      qariId: 'invalid-qari',
       showTajwid: 'yes'
     });
     assert.notEqual(settings, null);
@@ -169,7 +170,13 @@ describe('Storage & Import Schema Validation', () => {
     assert.equal(settings?.arabicFontSize, 48);
     assert.equal(settings?.translationFontSize, 13);
     assert.equal(settings?.arabicFontFamily, 'amiri');
+    assert.equal(settings?.qariId, 'mishari_alafasy');
     assert.equal(settings?.showTajwid, true);
+
+    const validQariSettings = validateReadingSettings({
+      qariId: 'maher_almuaiqly'
+    });
+    assert.equal(validQariSettings?.qariId, 'maher_almuaiqly');
   });
 
   it('validates and sanitizes imported bookmark lists and drops invalid entries', () => {

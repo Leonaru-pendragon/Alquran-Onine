@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bookmark, Clock, Trash2, ArrowUpRight, BookOpen, Edit3, Check, X, Download, Upload, TrendingUp } from 'lucide-react';
 import { BookmarkItem, ReadingHistoryItem } from '../types/quran';
 import { formatIndonesianRelativeTime, calculateReadingProgress } from '../utils/quranLogic';
@@ -13,6 +13,7 @@ interface SavedAndHistoryViewProps {
   onJumpToSurah: (surahNomor: number, ayahNomor: number) => void;
   onImportBookmarks: (imported: BookmarkItem[]) => void;
   initialTab?: 'dashboard' | 'bookmarks' | 'history';
+  onTabChange?: (tab: 'dashboard' | 'bookmarks' | 'history') => void;
 }
 
 export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
@@ -23,7 +24,8 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
   onClearHistory,
   onJumpToSurah,
   onImportBookmarks,
-  initialTab = 'dashboard'
+  initialTab = 'dashboard',
+  onTabChange
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'bookmarks' | 'history'>(initialTab);
   const [bookmarkTypeFilter, setBookmarkTypeFilter] = useState<'all' | 'ayah' | 'hadith'>('all');
@@ -31,6 +33,15 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
   const [editingNoteText, setEditingNoteText] = useState('');
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveTab((prev) => (prev === initialTab ? prev : initialTab));
+  }, [initialTab]);
+
+  const handleSelectSubTab = (tab: 'dashboard' | 'bookmarks' | 'history') => {
+    setActiveTab(tab);
+    onTabChange?.(tab);
+  };
 
   const filteredBookmarks = bookmarks.filter((b) => {
     if (bookmarkTypeFilter === 'all') return true;
@@ -107,7 +118,7 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 [body.theme-sepia_&]:border-[#dec9a5] pb-3">
         <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-start overflow-x-auto max-w-full">
           <button
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => handleSelectSubTab('dashboard')}
             className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'dashboard'
                 ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
@@ -119,7 +130,7 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('bookmarks')}
+            onClick={() => handleSelectSubTab('bookmarks')}
             className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'bookmarks'
                 ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'
@@ -131,7 +142,7 @@ export const SavedAndHistoryView: React.FC<SavedAndHistoryViewProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('history')}
+            onClick={() => handleSelectSubTab('history')}
             className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'history'
                 ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs'

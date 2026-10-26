@@ -19,9 +19,15 @@ import {
   X,
   ArrowUpRight
 } from 'lucide-react';
-import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem } from '../types/quran';
+import { SurahDetail, Ayah, ReadingSettings, BookmarkItem, ReadingHistoryItem, QariId } from '../types/quran';
 import { SURAH_METADATA_LIST } from '../data/quranMetadata';
-import { fetchSurahDetail, getAyahAudioUrl } from '../services/quranApi';
+import {
+  fetchSurahDetail,
+  getAyahAudioUrl,
+  QARI_OPTIONS,
+  DEFAULT_QARI_ID,
+  isValidQariId
+} from '../services/quranApi';
 import {
   TAJWID_RULES,
   renderTajwidHtml,
@@ -39,6 +45,8 @@ import { TafsirModal } from './TafsirModal';
 interface SurahReaderViewProps {
   currentSurahNomor: number;
   initialAyahNomor?: number;
+  initialScrollY?: number;
+  onInitialScrollRestored?: () => void;
   onSelectSurah: (nomor: number, initialAyah?: number) => void;
   settings: ReadingSettings;
   onUpdateSettings: (newSettings: Partial<ReadingSettings>) => void;
@@ -56,6 +64,8 @@ interface SurahReaderViewProps {
 export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   currentSurahNomor,
   initialAyahNomor = 1,
+  initialScrollY = 0,
+  onInitialScrollRestored,
   onSelectSurah,
   settings,
   onUpdateSettings,
@@ -124,22 +134,34 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
     };
   }, [currentSurahNomor]);
 
-  // Jump to initialAyah if provided and highlight it
+  // Jump to initialAyah (> 1) or restore saved scroll position after page refresh
   useEffect(() => {
-    if (!loading && surah && initialAyahNomor) {
+    if (loading || !surah) return;
+
+    if (initialAyahNomor > 1) {
       const el = ayahRefs.current.get(initialAyahNomor);
       if (el) {
-        setTimeout(() => {
+        const scrollTimer = setTimeout(() => {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 150);
+        }, 120);
         setHighlightedAyah(initialAyahNomor);
-        const timer = setTimeout(() => {
+        const clearHighlightTimer = setTimeout(() => {
           setHighlightedAyah(null);
         }, 4000);
-        return () => clearTimeout(timer);
+        return () => {
+          clearTimeout(scrollTimer);
+          clearTimeout(clearHighlightTimer);
+        };
       }
+    } else if (initialScrollY > 0) {
+      const targetScroll = initialScrollY;
+      const restoreTimer = setTimeout(() => {
+        window.scrollTo({ top: targetScroll, behavior: 'auto' });
+        onInitialScrollRestored?.();
+      }, 60);
+      return () => clearTimeout(restoreTimer);
     }
-  }, [loading, surah, initialAyahNomor]);
+  }, [loading, surah, initialAyahNomor, initialScrollY]);
 
   // Auto-scroll to currently playing ayah if enabled
   useEffect(() => {
@@ -267,6 +289,7 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
   });
 
   const activeMushafTajwidRules = TAJWID_RULES.filter((r) => r.aktifDiMushaf);
+  const selectedQariId: QariId = isValidQariId(settings.qariId) ? settings.qariId : DEFAULT_QARI_ID;
 
   const handleAyahArabicClick = (ayahNomor: number, e: React.MouseEvent<HTMLDivElement>) => {
     if (!settings.showTajwid) return;
@@ -581,20 +604,54 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
           <span className="tabular-nums">{surah.jumlahAyat} Ayat</span>
         </div>
 
-        {/* Audio Recitation Action */}
-        <div className="pt-2 flex items-center justify-center gap-3">
+        {/* Audio Recitation Action & Qari Selector */}
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
+          <div className="inline-flex items-center gap-1.5 min-h-10 px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-900/90 [body.theme-sepia_&]:bg-[#f6eee0] border border-emerald-200/90 dark:border-emerald-900/80 [body.theme-sepia_&]:border-[#dec9a5]">
+            <label
+              htmlFor="surah-header-qari-select"
+              className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a] whitespace-nowrap"
+            >
+              Qari:
+            </label>
+            <select
+              id="surah-header-qari-select"
+              value={selectedQariId}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (isValidQariId(next)) {
+                  onUpdateSettings({ qariId: next });
+                }
+              }}
+              aria-label="Pilih Qari Murottal"
+              className="text-xs font-semibold text-slate-800 dark:text-slate-100 [body.theme-sepia_&]:text-[#2c2217] bg-transparent focus:outline-none cursor-pointer max-w-[190px] sm:max-w-none truncate"
+            >
+              {QARI_OPTIONS.map((qari) => (
+                <option
+                  key={qari.id}
+                  value={qari.id}
+                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
+                >
+                  {qari.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             onClick={() => {
               if (onPlaySurahFullAudio) {
                 onPlaySurahFullAudio(surah.nomor);
               } else if (surah.ayat.length > 0) {
                 const firstAyah = surah.ayat[0];
-                const audioUrl = firstAyah.audio?.alafasy || getAyahAudioUrl(surah.nomor, firstAyah.nomorAyat);
+                const audioUrl =
+                  selectedQariId === 'mishari_alafasy' && firstAyah.audio?.alafasy
+                    ? firstAyah.audio.alafasy
+                    : getAyahAudioUrl(surah.nomor, firstAyah.nomorAyat, selectedQariId);
                 onPlayAyahAudio(surah.nomor, firstAyah.nomorAyat, audioUrl);
               }
             }}
             aria-label={`Putar Murottal Surah ${surah.namaLatin}`}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95"
+            className="min-h-10 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
           >
             <Volume2 className="w-4 h-4" />
             <span>Putar Murottal Surah Ini</span>
@@ -704,7 +761,10 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
                   {/* Play audio button */}
                   <button
                     onClick={() => {
-                      const audioUrl = ayah.audio?.alafasy || getAyahAudioUrl(surah.nomor, ayah.nomorAyat);
+                      const audioUrl =
+                        selectedQariId === 'mishari_alafasy' && ayah.audio?.alafasy
+                          ? ayah.audio.alafasy
+                          : getAyahAudioUrl(surah.nomor, ayah.nomorAyat, selectedQariId);
                       onPlayAyahAudio(surah.nomor, ayah.nomorAyat, audioUrl);
                     }}
                     aria-label={`Putar audio ayat ${ayah.nomorAyat}`}

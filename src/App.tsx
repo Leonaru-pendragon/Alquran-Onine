@@ -10,30 +10,71 @@ import { SettingsModal } from './components/SettingsModal';
 import { ShareAyahModal } from './components/ShareAyahModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { VoiceSearchModal } from './components/VoiceSearchModal';
+import { DownloadAppModal } from './components/DownloadAppModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme } from './types/quran';
+import { ReadingSettings, BookmarkItem, ReadingHistoryItem, Ayah, ReadingTheme, QariId } from './types/quran';
 import { toggleBookmarkItem } from './utils/quranLogic';
 import { VoiceSearchResult } from './utils/voiceCommandParser';
 import { getThemeStatusBarColor } from './utils/mobilePlatform';
 import { useScreenWakeLock } from './hooks/useScreenWakeLock';
-import { SURAH_METADATA_LIST } from './data/quranMetadata';
+import { useMobileDeviceTarget } from './hooks/useMobileDeviceTarget';
 import {
+  DEFAULT_QARI_ID,
+  getQariById,
+  isValidQariId,
   getAyahAudioUrl,
   getSurahFullAudioUrl,
   fetchUserStateFromBackend,
   syncUserStateToBackend
 } from './services/quranApi';
+import {
+  AppTabId,
+  TajwidSubTab,
+  SavedSubTab,
+  PersistedNavigationState,
+  PersistedAudioSession,
+  AudioTrackTarget,
+  loadNavigationStateFromBrowser,
+  saveNavigationStateToBrowser,
+  serializeNavHash,
+  parseNavHash,
+  loadAudioSessionFromBrowser,
+  saveAudioSessionToBrowser,
+  computeNextAudioTrack,
+  computePrevAudioTrack
+} from './utils/sessionPersistence';
 
 const SETTINGS_STORAGE_KEY = 'quran_settings_v1';
 const BOOKMARKS_STORAGE_KEY = 'quran_bookmarks_v1';
 const HISTORY_STORAGE_KEY = 'quran_history_v1';
 
 export default function App() {
-  // Navigation State
-  const [activeTab, setActiveTab] = useState<'surah' | 'reader' | 'hadith' | 'tajwid' | 'saved'>('surah');
-  const [currentSurahNomor, setCurrentSurahNomor] = useState<number>(1);
-  const [initialAyahNomor, setInitialAyahNomor] = useState<number>(1);
+  // Hydrate initial navigation snapshot once (from URL hash + localStorage fallback)
+  const initialNavRef = useRef<PersistedNavigationState | null>(null);
+  if (!initialNavRef.current) {
+    initialNavRef.current = loadNavigationStateFromBrowser();
+  }
+  const initialNav = initialNavRef.current;
+
+  // Navigation & Sub-View State (persisted across page refresh & PWA relaunch)
+  const [activeTab, setActiveTab] = useState<AppTabId>(initialNav.activeTab);
+  const [currentSurahNomor, setCurrentSurahNomor] = useState<number>(initialNav.surahNomor);
+  const [initialAyahNomor, setInitialAyahNomor] = useState<number>(initialNav.ayahNomor);
+  const [tajwidSection, setTajwidSection] = useState<TajwidSubTab>(initialNav.tajwidSection);
+  const [savedSubTab, setSavedSubTab] = useState<SavedSubTab>(initialNav.savedSubTab);
+  const [hadithBookSlug, setHadithBookSlug] = useState<string>(initialNav.hadithBookSlug);
+  const [pendingReaderScrollY, setPendingReaderScrollY] = useState<number>(
+    initialNav.activeTab === 'reader' ? initialNav.scrollY : 0
+  );
+
+  const scrollYRef = useRef<number>(initialNav.scrollY);
+  const isApplyingHashRef = useRef<boolean>(false);
+  const hasSyncedInitialHashRef = useRef<boolean>(false);
+  const prevRouteRef = useRef<{ activeTab: AppTabId; surahNomor: number }>({
+    activeTab: initialNav.activeTab,
+    surahNomor: initialNav.surahNomor
+  });
 
   // Settings State with Persistence
   const [settings, setSettings] = useState<ReadingSettings>(() => {
@@ -48,6 +89,7 @@ export default function App() {
       arabicFontSize: 28,
       translationFontSize: 15,
       arabicFontFamily: 'amiri',
+      qariId: DEFAULT_QARI_ID,
       showTajwid: true,
       showTranslation: true,
       showLatin: true,
@@ -55,6 +97,16 @@ export default function App() {
       keepScreenAwake: true
     };
   });
+
+  const activeQariId: QariId = isValidQariId(settings.qariId) ? settings.qariId : DEFAULT_QARI_ID;
+  const activeQari = getQariById(activeQariId);
+
+  // Hydrate initial audio session once so active audio player survives refresh & OS relaunch
+  const initialAudioSessionRef = useRef<PersistedAudioSession | null | undefined>(undefined);
+  if (initialAudioSessionRef.current === undefined) {
+    initialAudioSessionRef.current = loadAudioSessionFromBrowser(activeQariId);
+  }
+  const initialAudioSession = initialAudioSessionRef.current;
 
   // Bookmarks State with Persistence
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>(() => {
@@ -98,11 +150,164 @@ export default function App() {
     ];
   });
 
-  // Audio Playback State
-  const [currentPlayingAudio, setCurrentPlayingAudio] = useState<PlayingAudioState | null>(null);
+  // Audio Playback State (hydrated from persisted session if present)
+  const [currentPlayingAudio, setCurrentPlayingAudio] = useState<PlayingAudioState | null>(() => {
+    if (!initialAudioSession) return null;
+    return {
+      surahNomor: initialAudioSession.surahNomor,
+      ayahNomor: initialAudioSession.ayahNomor,
+      audioUrl: initialAudioSession.audioUrl,
+      isPlaying: initialAudioSession.isPlaying,
+      isFullSurah: initialAudioSession.isFullSurah
+    };
+  });
 
-  // Modals
+  // Keep latest navigation state in a ref for zero-rerender scroll & pagehide persistence
+  const latestNavStateRef = useRef<PersistedNavigationState>({
+    activeTab,
+    surahNomor: currentSurahNomor,
+    ayahNomor: initialAyahNomor,
+    tajwidSection,
+    savedSubTab,
+    hadithBookSlug,
+    scrollY: scrollYRef.current,
+    updatedAt: Date.now()
+  });
+
+  latestNavStateRef.current = {
+    activeTab,
+    surahNomor: currentSurahNomor,
+    ayahNomor: initialAyahNomor,
+    tajwidSection,
+    savedSubTab,
+    hadithBookSlug,
+    scrollY: scrollYRef.current,
+    updatedAt: Date.now()
+  };
+
+  // Restore scroll position on mount for synchronous non-reader views
+  useEffect(() => {
+    if (initialNav.activeTab !== 'reader' && initialNav.scrollY > 0) {
+      const timer = setTimeout(() => {
+        window.scrollTo({ top: initialNav.scrollY, behavior: 'auto' });
+      }, 40);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Synchronize active page & sub-views to GitHub-Pages-safe URL hash (#/...) + localStorage
+  useEffect(() => {
+    const nextHash = serializeNavHash({
+      activeTab,
+      surahNomor: currentSurahNomor,
+      ayahNomor: initialAyahNomor,
+      tajwidSection,
+      savedSubTab,
+      hadithBookSlug
+    });
+
+    if (typeof window !== 'undefined') {
+      if (!hasSyncedInitialHashRef.current) {
+        hasSyncedInitialHashRef.current = true;
+        if (window.location.hash !== nextHash) {
+          window.history.replaceState(null, '', nextHash);
+        }
+      } else if (!isApplyingHashRef.current) {
+        const primaryRouteChanged =
+          prevRouteRef.current.activeTab !== activeTab ||
+          prevRouteRef.current.surahNomor !== currentSurahNomor;
+        if (window.location.hash !== nextHash) {
+          if (primaryRouteChanged) {
+            window.history.pushState(null, '', nextHash);
+          } else {
+            window.history.replaceState(null, '', nextHash);
+          }
+        }
+      }
+      prevRouteRef.current = { activeTab, surahNomor: currentSurahNomor };
+      isApplyingHashRef.current = false;
+    }
+
+    saveNavigationStateToBrowser({
+      activeTab,
+      surahNomor: currentSurahNomor,
+      ayahNomor: initialAyahNomor,
+      tajwidSection,
+      savedSubTab,
+      hadithBookSlug,
+      scrollY: scrollYRef.current,
+      updatedAt: Date.now()
+    });
+  }, [activeTab, currentSurahNomor, initialAyahNomor, tajwidSection, savedSubTab, hadithBookSlug]);
+
+  // Support browser Back / Forward buttons & direct hash edits, plus scrollY persistence
+  useEffect(() => {
+    const handleHashChange = () => {
+      const parsed = parseNavHash(window.location.hash);
+      if (!parsed) return;
+      isApplyingHashRef.current = true;
+      if (parsed.activeTab) setActiveTab(parsed.activeTab);
+      if (parsed.surahNomor !== undefined) setCurrentSurahNomor(parsed.surahNomor);
+      if (parsed.ayahNomor !== undefined) setInitialAyahNomor(parsed.ayahNomor);
+      if (parsed.tajwidSection) setTajwidSection(parsed.tajwidSection);
+      if (parsed.savedSubTab) setSavedSubTab(parsed.savedSubTab);
+      if (parsed.hadithBookSlug) setHadithBookSlug(parsed.hadithBookSlug);
+    };
+
+    let scrollSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    const handleScroll = () => {
+      scrollYRef.current = Math.max(0, Math.round(window.scrollY || 0));
+      if (scrollSaveTimer) return;
+      scrollSaveTimer = setTimeout(() => {
+        scrollSaveTimer = null;
+        saveNavigationStateToBrowser({
+          ...latestNavStateRef.current,
+          scrollY: scrollYRef.current
+        });
+      }, 250);
+    };
+
+    const flushNavState = () => {
+      scrollYRef.current = Math.max(0, Math.round(window.scrollY || 0));
+      saveNavigationStateToBrowser({
+        ...latestNavStateRef.current,
+        scrollY: scrollYRef.current
+      });
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('pagehide', flushNavState);
+    window.addEventListener('beforeunload', flushNavState);
+    document.addEventListener('visibilitychange', flushNavState);
+
+    return () => {
+      if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('pagehide', flushNavState);
+      window.removeEventListener('beforeunload', flushNavState);
+      document.removeEventListener('visibilitychange', flushNavState);
+    };
+  }, []);
+
+  // Switch active audio stream immediately when user selects a different Qari
+  useEffect(() => {
+    setCurrentPlayingAudio((prev) => {
+      if (!prev) return null;
+      const nextUrl = prev.isFullSurah
+        ? getSurahFullAudioUrl(prev.surahNomor, activeQariId)
+        : getAyahAudioUrl(prev.surahNomor, prev.ayahNomor, activeQariId);
+      if (prev.audioUrl === nextUrl) return prev;
+      return { ...prev, audioUrl: nextUrl };
+    });
+  }, [activeQariId]);
+
+  // Modals & Mobile/Tablet Device Eligibility
+  const mobileDeviceTarget = useMobileDeviceTarget();
+  const isMobileOrTablet = Boolean(mobileDeviceTarget);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [isVoiceSearchOpen, setIsVoiceSearchOpen] = useState(false);
   const [quickSearchInitialQuery, setQuickSearchInitialQuery] = useState('');
@@ -222,11 +427,24 @@ export default function App() {
     updateSettings({ theme: newTheme });
   };
 
+  const handleNavigateTab = (nextTab: AppTabId) => {
+    if (nextTab !== activeTab) {
+      scrollYRef.current = 0;
+      setPendingReaderScrollY(0);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    setActiveTab(nextTab);
+  };
+
   const handleSelectSurah = (nomor: number, ayah: number = 1) => {
+    scrollYRef.current = 0;
+    setPendingReaderScrollY(0);
     setCurrentSurahNomor(nomor);
     setInitialAyahNomor(ayah);
     setActiveTab('reader');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (ayah <= 1) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleApplyVoiceResult = (result: VoiceSearchResult) => {
@@ -235,7 +453,7 @@ export default function App() {
       const aNo = result.ayahNomor || 1;
       handleSelectSurah(sNo, aNo);
       if (result.action === 'play') {
-        const audioUrl = getAyahAudioUrl(sNo, aNo);
+        const audioUrl = getAyahAudioUrl(sNo, aNo, activeQariId);
         handlePlayAyahAudio(sNo, aNo, audioUrl);
       }
     } else if (result.type === 'surah') {
@@ -246,7 +464,7 @@ export default function App() {
       }
     } else if (result.type === 'juz') {
       setSurahListFilter({ filter: 'Juz', query: String(result.juzNomor || 1) });
-      setActiveTab('surah');
+      handleNavigateTab('surah');
     } else if (result.type === 'search_query') {
       if (result.searchQuery) {
         setQuickSearchInitialQuery(result.searchQuery);
@@ -289,7 +507,6 @@ export default function App() {
       currentPlayingAudio.ayahNomor === ayahNomor &&
       !currentPlayingAudio.isFullSurah
     ) {
-      // Toggle
       setCurrentPlayingAudio((prev) =>
         prev ? { ...prev, isPlaying: !prev.isPlaying } : null
       );
@@ -310,12 +527,11 @@ export default function App() {
       currentPlayingAudio.surahNomor === surahNomor &&
       currentPlayingAudio.isFullSurah
     ) {
-      // Toggle
       setCurrentPlayingAudio((prev) =>
         prev ? { ...prev, isPlaying: !prev.isPlaying } : null
       );
     } else {
-      const audioUrl = getSurahFullAudioUrl(surahNomor);
+      const audioUrl = getSurahFullAudioUrl(surahNomor, activeQariId);
       setCurrentPlayingAudio({
         surahNomor,
         ayahNomor: 1,
@@ -326,84 +542,53 @@ export default function App() {
     }
   };
 
+  const handleAdvanceAudioTrack = (nextTrack: AudioTrackTarget) => {
+    setCurrentPlayingAudio((prev) => {
+      if (
+        prev &&
+        prev.surahNomor !== nextTrack.surahNomor &&
+        currentSurahNomor === prev.surahNomor
+      ) {
+        setCurrentSurahNomor(nextTrack.surahNomor);
+        setInitialAyahNomor(nextTrack.ayahNomor);
+      }
+      return nextTrack;
+    });
+  };
+
   const handleNextAyahAudio = () => {
     if (!currentPlayingAudio) return;
-
-    if (currentPlayingAudio.isFullSurah) {
-      if (currentPlayingAudio.surahNomor < 114) {
-        const nextSurah = currentPlayingAudio.surahNomor + 1;
-        handlePlaySurahFullAudio(nextSurah);
-        setCurrentSurahNomor(nextSurah);
-        setInitialAyahNomor(1);
-      }
-      return;
-    }
-
-    const currentMeta = SURAH_METADATA_LIST.find((s) => s.nomor === currentPlayingAudio.surahNomor);
-    const totalAyat = currentMeta?.jumlahAyat || 7;
-    const nextAyah = currentPlayingAudio.ayahNomor + 1;
-
-    if (nextAyah <= totalAyat) {
-      const nextAudioUrl = getAyahAudioUrl(currentPlayingAudio.surahNomor, nextAyah);
-      setCurrentPlayingAudio({
-        ...currentPlayingAudio,
-        ayahNomor: nextAyah,
-        audioUrl: nextAudioUrl,
-        isPlaying: true
-      });
-    } else if (currentPlayingAudio.surahNomor < 114) {
-      // Advance to next Surah Ayah 1
-      const nextSurah = currentPlayingAudio.surahNomor + 1;
-      const nextAudioUrl = getAyahAudioUrl(nextSurah, 1);
-      setCurrentPlayingAudio({
-        surahNomor: nextSurah,
-        ayahNomor: 1,
-        audioUrl: nextAudioUrl,
-        isPlaying: true,
-        isFullSurah: false
-      });
-      setCurrentSurahNomor(nextSurah);
-      setInitialAyahNomor(1);
+    const nextTrack = computeNextAudioTrack(
+      {
+        surahNomor: currentPlayingAudio.surahNomor,
+        ayahNomor: currentPlayingAudio.ayahNomor,
+        isFullSurah: Boolean(currentPlayingAudio.isFullSurah)
+      },
+      activeQariId
+    );
+    if (nextTrack) {
+      handleAdvanceAudioTrack(nextTrack);
     }
   };
 
   const handlePrevAyahAudio = () => {
     if (!currentPlayingAudio) return;
-
-    if (currentPlayingAudio.isFullSurah) {
-      if (currentPlayingAudio.surahNomor > 1) {
-        const prevSurah = currentPlayingAudio.surahNomor - 1;
-        handlePlaySurahFullAudio(prevSurah);
-        setCurrentSurahNomor(prevSurah);
-        setInitialAyahNomor(1);
-      }
-      return;
+    const prevTrack = computePrevAudioTrack(
+      {
+        surahNomor: currentPlayingAudio.surahNomor,
+        ayahNomor: currentPlayingAudio.ayahNomor,
+        isFullSurah: Boolean(currentPlayingAudio.isFullSurah)
+      },
+      activeQariId
+    );
+    if (prevTrack) {
+      handleAdvanceAudioTrack(prevTrack);
     }
+  };
 
-    const prevAyah = currentPlayingAudio.ayahNomor - 1;
-    if (prevAyah >= 1) {
-      const prevAudioUrl = getAyahAudioUrl(currentPlayingAudio.surahNomor, prevAyah);
-      setCurrentPlayingAudio({
-        ...currentPlayingAudio,
-        ayahNomor: prevAyah,
-        audioUrl: prevAudioUrl,
-        isPlaying: true
-      });
-    } else if (currentPlayingAudio.surahNomor > 1) {
-      const prevSurah = currentPlayingAudio.surahNomor - 1;
-      const prevMeta = SURAH_METADATA_LIST.find((s) => s.nomor === prevSurah);
-      const lastAyahOfPrev = prevMeta?.jumlahAyat || 1;
-      const prevAudioUrl = getAyahAudioUrl(prevSurah, lastAyahOfPrev);
-      setCurrentPlayingAudio({
-        surahNomor: prevSurah,
-        ayahNomor: lastAyahOfPrev,
-        audioUrl: prevAudioUrl,
-        isPlaying: true,
-        isFullSurah: false
-      });
-      setCurrentSurahNomor(prevSurah);
-      setInitialAyahNomor(lastAyahOfPrev);
-    }
+  const handleCloseAudioPlayer = () => {
+    saveAudioSessionToBrowser(null);
+    setCurrentPlayingAudio(null);
   };
 
   const handleOpenShareModal = (surahName: string, surahNomor: number, ayah: Ayah) => {
@@ -423,10 +608,11 @@ export default function App() {
       {/* Top Bar Navigation */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigateTab}
         theme={settings.theme}
         setTheme={setTheme}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
         onQuickSearch={() => {
           setQuickSearchInitialQuery('');
           setIsQuickSearchOpen(true);
@@ -440,10 +626,11 @@ export default function App() {
           <SurahListView
             onSelectSurah={handleSelectSurah}
             lastRead={lastRead}
-            onNavigateToHadith={() => setActiveTab('hadith')}
-            onNavigateToTajwid={() => setActiveTab('tajwid')}
-            onNavigateToProgress={() => setActiveTab('saved')}
+            onNavigateToHadith={() => handleNavigateTab('hadith')}
+            onNavigateToTajwid={() => handleNavigateTab('tajwid')}
+            onNavigateToProgress={() => handleNavigateTab('saved')}
             onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
+            onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
             externalSearchQuery={surahListFilter.query}
             initialFilter={surahListFilter.filter}
           />
@@ -453,6 +640,8 @@ export default function App() {
           <SurahReaderView
             currentSurahNomor={currentSurahNomor}
             initialAyahNomor={initialAyahNomor}
+            initialScrollY={pendingReaderScrollY}
+            onInitialScrollRestored={() => setPendingReaderScrollY(0)}
             onSelectSurah={handleSelectSurah}
             settings={settings}
             onUpdateSettings={updateSettings}
@@ -464,7 +653,7 @@ export default function App() {
             onPlayAyahAudio={handlePlayAyahAudio}
             onPlaySurahFullAudio={handlePlaySurahFullAudio}
             onOpenShareModal={handleOpenShareModal}
-            onNavigateToTajwid={() => setActiveTab('tajwid')}
+            onNavigateToTajwid={() => handleNavigateTab('tajwid')}
           />
         )}
 
@@ -472,11 +661,17 @@ export default function App() {
           <HadithExplorerView
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
+            initialBookSlug={hadithBookSlug}
+            onBookSlugChange={setHadithBookSlug}
           />
         )}
 
         {activeTab === 'tajwid' && (
-          <TajwidGuideView onJumpToSurah={handleSelectSurah} />
+          <TajwidGuideView
+            onJumpToSurah={handleSelectSurah}
+            initialSection={tajwidSection}
+            onSectionChange={setTajwidSection}
+          />
         )}
 
         {activeTab === 'saved' && (
@@ -488,16 +683,25 @@ export default function App() {
             onClearHistory={handleClearHistory}
             onJumpToSurah={handleSelectSurah}
             onImportBookmarks={(imported) => setBookmarks(imported)}
+            initialTab={savedSubTab}
+            onTabChange={setSavedSubTab}
           />
         )}
       </main>
 
-      {/* Persistent Audio Player Bar */}
+      {/* Persistent Audio Player Bar (keeps DOM <audio> mounted at all times) */}
       <AudioPlayerBar
         currentPlaying={currentPlayingAudio}
-        onClose={() => setCurrentPlayingAudio(null)}
+        initialAudioSession={initialAudioSession}
+        selectedQariId={activeQariId}
+        onSelectQari={(qariId) => updateSettings({ qariId })}
+        onClose={handleCloseAudioPlayer}
         onNextAyah={handleNextAyahAudio}
         onPrevAyah={handlePrevAyahAudio}
+        onAdvanceTrack={handleAdvanceAudioTrack}
+        onAutoplayBlocked={() =>
+          setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null))
+        }
         onTogglePlayPause={() =>
           setCurrentPlayingAudio((prev) =>
             prev ? { ...prev, isPlaying: !prev.isPlaying } : null
@@ -511,6 +715,13 @@ export default function App() {
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onUpdateSettings={updateSettings}
+        onOpenDownloadModal={isMobileOrTablet ? () => setIsDownloadModalOpen(true) : undefined}
+      />
+
+      {/* Mobile & Tablet APK / IPA Download Modal */}
+      <DownloadAppModal
+        isOpen={isMobileOrTablet && isDownloadModalOpen}
+        onClose={() => setIsDownloadModalOpen(false)}
       />
 
       {/* Quick Search Modal */}
@@ -518,8 +729,8 @@ export default function App() {
         isOpen={isQuickSearchOpen}
         onClose={() => setIsQuickSearchOpen(false)}
         onSelectSurah={handleSelectSurah}
-        onSelectHadith={() => setActiveTab('hadith')}
-        onSelectTajwid={() => setActiveTab('tajwid')}
+        onSelectHadith={() => handleNavigateTab('hadith')}
+        onSelectTajwid={() => handleNavigateTab('tajwid')}
         onOpenVoiceSearch={() => setIsVoiceSearchOpen(true)}
         initialQuery={quickSearchInitialQuery}
       />
@@ -544,26 +755,37 @@ export default function App() {
       <OfflineIndicator />
 
       {/* Mobile & Tablet Floating Dock Navigation */}
-      <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <MobileBottomNav activeTab={activeTab} setActiveTab={handleNavigateTab} />
 
       {/* Minimalist Footer */}
       <footer className="border-t border-slate-200/80 dark:border-slate-800/80 [body.theme-sepia_&]:border-[#dec9a5] py-6 pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-6 text-center text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#624f3a]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
-            Al-Qur'an Digital & Ensiklopedia Hadits · Terjemahan Resmi Kemenag RI & Murottal Syaikh Misyari Rasyid Al-Afasy
+            Al-Qur'an Digital & Ensiklopedia Hadits · Terjemahan Resmi Kemenag RI & Murottal {activeQari.nama}
           </p>
-          <div className="flex items-center gap-4 text-xs font-medium">
-            <button onClick={() => setActiveTab('surah')} className="hover:underline cursor-pointer">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs font-medium">
+            <button onClick={() => handleNavigateTab('surah')} className="hover:underline cursor-pointer">
               114 Surah
             </button>
             <span aria-hidden="true">·</span>
-            <button onClick={() => setActiveTab('hadith')} className="hover:underline cursor-pointer">
+            <button onClick={() => handleNavigateTab('hadith')} className="hover:underline cursor-pointer">
               9 Kitab Hadits
             </button>
             <span aria-hidden="true">·</span>
-            <button onClick={() => setActiveTab('tajwid')} className="hover:underline cursor-pointer">
+            <button onClick={() => handleNavigateTab('tajwid')} className="hover:underline cursor-pointer">
               Kaidah Tajwid
             </button>
+            {isMobileOrTablet && (
+              <>
+                <span aria-hidden="true">·</span>
+                <button
+                  onClick={() => setIsDownloadModalOpen(true)}
+                  className="text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] hover:underline cursor-pointer"
+                >
+                  Unduh Aplikasi
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>

@@ -62,6 +62,13 @@ test('GitHub Pages fallback bundle and index.html cache-busting build hash are i
     false,
     'gh-pages-app/app.js must not include removed Gharib settings toggle'
   );
+  assert.equal(
+    appJsContent.includes('Abdul Basit Abdus Samad') &&
+      appJsContent.includes('Maher Al-Muaiqly') &&
+      appJsContent.includes('Saad Al-Ghamdi'),
+    true,
+    'gh-pages-app/app.js must include the 5 selectable Qari voice actors'
+  );
 });
 
 test('renderTajwidHtml attaches space-preceded Quranic combining waqf/saktah marks to preceding glyph', () => {

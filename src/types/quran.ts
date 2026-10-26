@@ -231,11 +231,26 @@ export interface QuranProgressStats {
 
 export type ReadingTheme = 'light' | 'sepia' | 'dark';
 
+export type QariId =
+  | 'mishari_alafasy'
+  | 'abdul_basit'
+  | 'abdurrahman_assudais'
+  | 'maher_almuaiqly'
+  | 'saad_alghamdi';
+
+export interface QariOption {
+  id: QariId;
+  nama: string;
+  namaArab: string;
+  keterangan: string;
+}
+
 export interface ReadingSettings {
   theme: ReadingTheme;
   arabicFontSize: number;
   translationFontSize: number;
   arabicFontFamily: 'amiri' | 'scheherazade';
+  qariId?: QariId;
   showTajwid: boolean;
   showTranslation: boolean;
   showLatin: boolean;

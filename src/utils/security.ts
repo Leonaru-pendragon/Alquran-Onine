@@ -1,6 +1,7 @@
 import type {
   Ayah,
   BookmarkItem,
+  QariId,
   ReadingHistoryItem,
   ReadingSettings,
   ReadingTheme,
@@ -22,6 +23,11 @@ export const TRUSTED_AUDIO_HOSTS: readonly string[] = [
   'equran.id',
   'everyayah.com',
   'www.everyayah.com',
+  'download.quranicaudio.com',
+  'server7.mp3quran.net',
+  'server8.mp3quran.net',
+  'server11.mp3quran.net',
+  'server12.mp3quran.net',
   'cdn.islamic.network',
   'audio.qurancdn.com'
 ];
@@ -295,6 +301,13 @@ export function safeStorageSet(key: string, value: unknown, maxBytes: number = 1
 }
 
 const VALID_THEMES: readonly ReadingTheme[] = ['light', 'sepia', 'dark'];
+const VALID_QARI_IDS: readonly QariId[] = [
+  'mishari_alafasy',
+  'abdul_basit',
+  'abdurrahman_assudais',
+  'maher_almuaiqly',
+  'saad_alghamdi'
+];
 
 /**
  * Schema validator & normalizer for ReadingSettings.
@@ -315,11 +328,16 @@ export function validateReadingSettings(raw: unknown): ReadingSettings | null {
 
   const arabicFontFamily = obj.arabicFontFamily === 'scheherazade' ? 'scheherazade' : 'amiri';
 
+  const qariId: QariId = VALID_QARI_IDS.includes(obj.qariId as QariId)
+    ? (obj.qariId as QariId)
+    : 'mishari_alafasy';
+
   return {
     theme,
     arabicFontSize: Number.isFinite(arabicFontSize) ? arabicFontSize : 28,
     translationFontSize: Number.isFinite(translationFontSize) ? translationFontSize : 15,
     arabicFontFamily,
+    qariId,
     showTajwid: typeof obj.showTajwid === 'boolean' ? obj.showTajwid : true,
     showTranslation: typeof obj.showTranslation === 'boolean' ? obj.showTranslation : true,
     showLatin: typeof obj.showLatin === 'boolean' ? obj.showLatin : true,
@@ -641,7 +659,7 @@ export function buildSecurityHeaders(isProduction: boolean): Record<string, stri
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https:",
-    "media-src 'self' https://cdn.equran.id https://equran.id https://everyayah.com https://www.everyayah.com https://cdn.islamic.network https://audio.qurancdn.com blob: data:",
+    "media-src 'self' https://cdn.equran.id https://equran.id https://everyayah.com https://www.everyayah.com https://download.quranicaudio.com https://server7.mp3quran.net https://server8.mp3quran.net https://server11.mp3quran.net https://server12.mp3quran.net https://cdn.islamic.network https://audio.qurancdn.com blob: data:",
     connectSrc,
     "object-src 'none'",
     "base-uri 'self'",
