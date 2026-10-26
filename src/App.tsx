@@ -42,6 +42,7 @@ import {
   computeNextAudioTrack,
   computePrevAudioTrack
 } from './utils/sessionPersistence';
+import { backgroundAudioEngine } from './utils/backgroundAudioEngine';
 
 const SETTINGS_STORAGE_KEY = 'quran_settings_v1';
 const BOOKMARKS_STORAGE_KEY = 'quran_bookmarks_v1';
@@ -415,6 +416,30 @@ export default function App() {
   }, [bookmarks, readingHistory, settings]);
 
   const updateSettings = (newSettings: Partial<ReadingSettings>) => {
+    if (
+      newSettings.qariId &&
+      isValidQariId(newSettings.qariId) &&
+      newSettings.qariId !== activeQariId &&
+      currentPlayingAudio
+    ) {
+      const nextQari = newSettings.qariId;
+      const nextUrl = currentPlayingAudio.isFullSurah
+        ? getSurahFullAudioUrl(currentPlayingAudio.surahNomor, nextQari)
+        : getAyahAudioUrl(currentPlayingAudio.surahNomor, currentPlayingAudio.ayahNomor, nextQari);
+      if (currentPlayingAudio.isPlaying) {
+        backgroundAudioEngine.playTrackFromGesture(
+          {
+            surahNomor: currentPlayingAudio.surahNomor,
+            ayahNomor: currentPlayingAudio.ayahNomor,
+            audioUrl: nextUrl,
+            isPlaying: true,
+            isFullSurah: Boolean(currentPlayingAudio.isFullSurah)
+          },
+          nextQari
+        );
+      }
+      setCurrentPlayingAudio((prev) => (prev ? { ...prev, audioUrl: nextUrl } : null));
+    }
     setSettings((prev) => ({ ...prev, ...newSettings }));
   };
 
@@ -494,7 +519,7 @@ export default function App() {
     setReadingHistory([]);
   };
 
-  // Audio Playback Handlers
+  // Audio Playback Handlers (synchronous user-gesture execution for iOS/Android background privilege)
   const handlePlayAyahAudio = (surahNomor: number, ayahNomor: number, audioUrl: string) => {
     if (
       currentPlayingAudio &&
@@ -502,17 +527,34 @@ export default function App() {
       currentPlayingAudio.ayahNomor === ayahNomor &&
       !currentPlayingAudio.isFullSurah
     ) {
-      setCurrentPlayingAudio((prev) =>
-        prev ? { ...prev, isPlaying: !prev.isPlaying } : null
-      );
+      if (currentPlayingAudio.isPlaying) {
+        backgroundAudioEngine.pauseFromUser();
+        setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null));
+      } else {
+        const snap = backgroundAudioEngine.getSnapshot();
+        backgroundAudioEngine.playTrackFromGesture(
+          {
+            surahNomor,
+            ayahNomor,
+            audioUrl,
+            isPlaying: true,
+            isFullSurah: false
+          },
+          activeQariId,
+          snap.currentTime
+        );
+        setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: true } : null));
+      }
     } else {
-      setCurrentPlayingAudio({
+      const nextTrack: AudioTrackTarget = {
         surahNomor,
         ayahNomor,
         audioUrl,
         isPlaying: true,
         isFullSurah: false
-      });
+      };
+      backgroundAudioEngine.playTrackFromGesture(nextTrack, activeQariId);
+      setCurrentPlayingAudio(nextTrack);
     }
   };
 
@@ -522,18 +564,57 @@ export default function App() {
       currentPlayingAudio.surahNomor === surahNomor &&
       currentPlayingAudio.isFullSurah
     ) {
-      setCurrentPlayingAudio((prev) =>
-        prev ? { ...prev, isPlaying: !prev.isPlaying } : null
-      );
+      if (currentPlayingAudio.isPlaying) {
+        backgroundAudioEngine.pauseFromUser();
+        setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null));
+      } else {
+        const snap = backgroundAudioEngine.getSnapshot();
+        backgroundAudioEngine.playTrackFromGesture(
+          {
+            surahNomor,
+            ayahNomor: 1,
+            audioUrl: currentPlayingAudio.audioUrl,
+            isPlaying: true,
+            isFullSurah: true
+          },
+          activeQariId,
+          snap.currentTime
+        );
+        setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: true } : null));
+      }
     } else {
       const audioUrl = getSurahFullAudioUrl(surahNomor, activeQariId);
-      setCurrentPlayingAudio({
+      const nextTrack: AudioTrackTarget = {
         surahNomor,
         ayahNomor: 1,
         audioUrl,
         isPlaying: true,
         isFullSurah: true
-      });
+      };
+      backgroundAudioEngine.playTrackFromGesture(nextTrack, activeQariId);
+      setCurrentPlayingAudio(nextTrack);
+    }
+  };
+
+  const handleTogglePlayPause = () => {
+    if (!currentPlayingAudio) return;
+    if (currentPlayingAudio.isPlaying) {
+      backgroundAudioEngine.pauseFromUser();
+      setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null));
+    } else {
+      const snap = backgroundAudioEngine.getSnapshot();
+      backgroundAudioEngine.playTrackFromGesture(
+        {
+          surahNomor: currentPlayingAudio.surahNomor,
+          ayahNomor: currentPlayingAudio.ayahNomor,
+          audioUrl: currentPlayingAudio.audioUrl,
+          isPlaying: true,
+          isFullSurah: Boolean(currentPlayingAudio.isFullSurah)
+        },
+        activeQariId,
+        snap.currentTime
+      );
+      setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: true } : null));
     }
   };
 
@@ -562,6 +643,7 @@ export default function App() {
       activeQariId
     );
     if (nextTrack) {
+      backgroundAudioEngine.playTrackFromGesture(nextTrack, activeQariId);
       handleAdvanceAudioTrack(nextTrack);
     }
   };
@@ -577,11 +659,13 @@ export default function App() {
       activeQariId
     );
     if (prevTrack) {
+      backgroundAudioEngine.playTrackFromGesture(prevTrack, activeQariId);
       handleAdvanceAudioTrack(prevTrack);
     }
   };
 
   const handleCloseAudioPlayer = () => {
+    backgroundAudioEngine.stopAndClear();
     saveAudioSessionToBrowser(null);
     setCurrentPlayingAudio(null);
   };
@@ -682,7 +766,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Persistent Audio Player Bar (keeps DOM <audio> mounted at all times) */}
+      {/* Persistent Audio Player Bar (backed by dual-deck backgroundAudioEngine on document.body) */}
       <AudioPlayerBar
         currentPlaying={currentPlayingAudio}
         initialAudioSession={initialAudioSession}
@@ -695,11 +779,10 @@ export default function App() {
         onAutoplayBlocked={() =>
           setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null))
         }
-        onTogglePlayPause={() =>
-          setCurrentPlayingAudio((prev) =>
-            prev ? { ...prev, isPlaying: !prev.isPlaying } : null
-          )
+        onExternalPause={() =>
+          setCurrentPlayingAudio((prev) => (prev ? { ...prev, isPlaying: false } : null))
         }
+        onTogglePlayPause={handleTogglePlayPause}
       />
 
       {/* Accessibility & Settings Modal */}

@@ -1,4 +1,25 @@
+import { backgroundAudioEngine } from './backgroundAudioEngine';
+
 const SW_RELOAD_SESSION_KEY = 'quran_sw_reloaded_once';
+
+function isAnyMurottalPlaying(): boolean {
+  if (backgroundAudioEngine.isActivelyPlaying()) {
+    return true;
+  }
+  if (typeof document === 'undefined') {
+    return false;
+  }
+  const decks = document.querySelectorAll(
+    'audio[data-quran-bg-deck="true"], #quran-background-audio, #quran-background-audio-b'
+  );
+  for (let i = 0; i < decks.length; i++) {
+    const el = decks[i] as HTMLAudioElement;
+    if (el && !el.paused) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * Ensures returning visitors on GitHub Pages / PWA receive newly deployed bundles
@@ -14,9 +35,8 @@ export function setupAutoServiceWorkerRefresh(): void {
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadExistingController) return;
-    // Never interrupt active murottal audio playback with an automatic SW reload
-    const bgAudio = document.getElementById('quran-background-audio') as HTMLAudioElement | null;
-    if (bgAudio && !bgAudio.paused) return;
+    // Never interrupt active murottal audio playback on either deck with an automatic SW reload
+    if (isAnyMurottalPlaying()) return;
     try {
       if (sessionStorage.getItem(SW_RELOAD_SESSION_KEY) === '1') return;
       sessionStorage.setItem(SW_RELOAD_SESSION_KEY, '1');
@@ -27,6 +47,7 @@ export function setupAutoServiceWorkerRefresh(): void {
   });
 
   const triggerUpdateCheck = () => {
+    if (isAnyMurottalPlaying()) return;
     navigator.serviceWorker
       .getRegistrations()
       .then((registrations) => {

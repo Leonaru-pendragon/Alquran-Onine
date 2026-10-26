@@ -163,20 +163,44 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
     }
   }, [loading, surah, initialAyahNomor, initialScrollY]);
 
-  // Auto-scroll to currently playing ayah if enabled
+  // Auto-scroll to currently playing ayah when enabled (including catch-up on return from background playback)
   useEffect(() => {
-    if (
-      settings.autoScrollAudio &&
-      currentPlayingAudio &&
-      currentPlayingAudio.surahNomor === currentSurahNomor &&
-      currentPlayingAudio.isPlaying
-    ) {
-      const el = ayahRefs.current.get(currentPlayingAudio.ayahNomor);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const scrollToActiveRecitedAyah = () => {
+      if (
+        settings.autoScrollAudio &&
+        currentPlayingAudio &&
+        currentPlayingAudio.surahNomor === currentSurahNomor &&
+        currentPlayingAudio.isPlaying &&
+        !currentPlayingAudio.isFullSurah
+      ) {
+        const el = ayahRefs.current.get(currentPlayingAudio.ayahNomor);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
-    }
-  }, [currentPlayingAudio, settings.autoScrollAudio, currentSurahNomor]);
+    };
+
+    scrollToActiveRecitedAyah();
+
+    const handleVisibilityCatchUp = () => {
+      if (document.visibilityState === 'visible') {
+        scrollToActiveRecitedAyah();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityCatchUp);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityCatchUp);
+    };
+  }, [
+    currentPlayingAudio?.surahNomor,
+    currentPlayingAudio?.ayahNomor,
+    currentPlayingAudio?.isPlaying,
+    currentPlayingAudio?.isFullSurah,
+    settings.autoScrollAudio,
+    currentSurahNomor,
+    loading
+  ]);
 
   const handleCopyAyah = (ayah: Ayah) => {
     if (!surah) return;

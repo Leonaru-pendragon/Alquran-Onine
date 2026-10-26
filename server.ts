@@ -5,6 +5,14 @@ import { fileURLToPath } from 'node:url';
 import type { SurahDetail, Ayah, SurahTafsirDetail, BookmarkItem, ReadingHistoryItem, ReadingSettings } from './src/types/quran.ts';
 import { SURAH_METADATA_LIST, JUZ_LIST } from './src/data/quranMetadata.ts';
 import { HADITH_BOOKS, HADITH_CATEGORIES, COMPREHENSIVE_HADITHS } from './src/data/hadithsData.ts';
+import {
+  INSTALLER_FORMATS,
+  detectMobileDeviceTarget,
+  getPrimaryFormatForMobileDevice,
+  isValidInstallerFormatId,
+  buildInstallerFilePayload,
+  sanitizeInstallerAppUrl
+} from './src/utils/deviceInstaller.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +26,24 @@ const serverHadithBookCache = new Map<string, unknown>();
 // Persistent server-side user state directory (.data/user_state.json)
 const DATA_DIR = path.join(__dirname, '.data');
 const USER_STATE_FILE = path.join(DATA_DIR, 'user_state.json');
+
+let cachedServerIconBytes: Uint8Array | null = null;
+function getServerIconBytes(): Uint8Array | undefined {
+  if (cachedServerIconBytes !== null) {
+    return cachedServerIconBytes.length > 0 ? cachedServerIconBytes : undefined;
+  }
+  try {
+    const iconPath = path.join(__dirname, 'public', 'pwa-192x192.png');
+    if (fs.existsSync(iconPath)) {
+      cachedServerIconBytes = new Uint8Array(fs.readFileSync(iconPath));
+      return cachedServerIconBytes;
+    }
+  } catch {
+    // ignore
+  }
+  cachedServerIconBytes = new Uint8Array(0);
+  return undefined;
+}
 
 interface PersistedUserState {
   bookmarks: BookmarkItem[];
@@ -415,6 +441,69 @@ export async function createAppServer() {
 
     writePersistedState(nextState);
     res.json({ ok: true, updatedAt: nextState.updatedAt });
+  });
+
+  // 8. Mobile & Tablet Only (.apk & .ipa) Application Download Endpoints
+  app.get('/api/download-formats', (req, res) => {
+    const ua = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '';
+    const detectedMobileDevice = detectMobileDeviceTarget(ua);
+    const recommendedFormatId = detectedMobileDevice
+      ? getPrimaryFormatForMobileDevice(detectedMobileDevice)
+      : null;
+    res.json({
+      isMobileOrTablet: Boolean(detectedMobileDevice),
+      detectedDevice: detectedMobileDevice,
+      recommendedFormatId,
+      formats: INSTALLER_FORMATS
+    });
+  });
+
+  app.get('/api/download-installer', async (req, res) => {
+    const ua = typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : '';
+    const detectedMobileDevice = detectMobileDeviceTarget(ua);
+    const rawFormat = typeof req.query.format === 'string' ? req.query.format.trim() : '';
+
+    if (rawFormat && rawFormat !== 'auto' && !isValidInstallerFormatId(rawFormat)) {
+      res.status(400).json({
+        error: 'Format perangkat tidak dikenali. Hanya mendukung .apk (Android/Tablet) dan .ipa (iPhone/iPad).',
+        supportedFormats: INSTALLER_FORMATS.map((f) => f.formatId)
+      });
+      return;
+    }
+
+    if ((!rawFormat || rawFormat === 'auto') && !detectedMobileDevice) {
+      res.status(403).json({
+        error: 'Unduhan aplikasi (.apk / .ipa) khusus untuk pengguna Mobile & Tablet (Android, Tablet Android, iPhone, dan iPad).'
+      });
+      return;
+    }
+
+    const resolvedFormat =
+      rawFormat && rawFormat !== 'auto' && isValidInstallerFormatId(rawFormat)
+        ? rawFormat
+        : getPrimaryFormatForMobileDevice(detectedMobileDevice!);
+
+    const forwardedProto =
+      typeof req.headers['x-forwarded-proto'] === 'string'
+        ? req.headers['x-forwarded-proto'].split(',')[0].trim()
+        : req.protocol || 'https';
+    const safeProto = forwardedProto === 'http' ? 'http' : 'https';
+    const hostHeader = req.get('host') || 'localhost:3000';
+    const inferredOriginUrl = `${safeProto}://${hostHeader}/`;
+    const customUrl = typeof req.query.url === 'string' ? req.query.url : '';
+    const appUrl = sanitizeInstallerAppUrl(customUrl || inferredOriginUrl, inferredOriginUrl);
+
+    const payload = await buildInstallerFilePayload(resolvedFormat, appUrl, {
+      iconPngBytes: getServerIconBytes()
+    });
+
+    res.setHeader('Content-Type', payload.spec.mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${payload.spec.fileName}"`);
+    res.setHeader('Content-Length', String(payload.bytes.byteLength));
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Detected-Device', detectedMobileDevice || payload.spec.deviceId);
+    res.setHeader('X-Installer-Format', payload.spec.formatId);
+    res.status(200).send(Buffer.from(payload.bytes));
   });
 
   // Serve pre-built gh-pages fallback assets and /public mirror (for GitHub Pages root mode verification)

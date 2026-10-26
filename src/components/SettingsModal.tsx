@@ -10,13 +10,15 @@ interface SettingsModalProps {
   onClose: () => void;
   settings: ReadingSettings;
   onUpdateSettings: (newSettings: Partial<ReadingSettings>) => void;
+  onOpenDownloadModal?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   settings,
-  onUpdateSettings
+  onUpdateSettings,
+  onOpenDownloadModal
 }) => {
   if (!isOpen) return null;
 
@@ -51,8 +53,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* PWA Android & iOS Installation */}
-        <PWAInstallButton variant="settings" />
+        {/* Device-Matched App Download & PWA Installation */}
+        <PWAInstallButton
+          variant="settings"
+          onOpenDownloadModal={
+            onOpenDownloadModal
+              ? () => {
+                  onClose();
+                  onOpenDownloadModal();
+                }
+              : undefined
+          }
+        />
 
         {/* Section 1: Tema Tampilan (Mode Gelap / Sepia / Terang) */}
         <div className="space-y-2.5">

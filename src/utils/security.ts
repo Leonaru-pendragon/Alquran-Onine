@@ -672,7 +672,7 @@ export function buildSecurityHeaders(isProduction: boolean): Record<string, stri
     'X-Content-Type-Options': 'nosniff',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy':
-      'camera=(), geolocation=(), gyroscope=(), magnetometer=(), payment=(), usb=(), microphone=(self)',
+      'camera=(), geolocation=(), gyroscope=(), magnetometer=(), payment=(), usb=(), microphone=(self), autoplay=(self), screen-wake-lock=(self)',
     'X-DNS-Prefetch-Control': 'off',
     'X-Permitted-Cross-Domain-Policies': 'none',
     'Cross-Origin-Resource-Policy': 'cross-origin'

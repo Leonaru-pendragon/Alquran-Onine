@@ -16,19 +16,17 @@ import {
   DEFAULT_QARI_ID,
   QARI_OPTIONS,
   getQariById,
-  getAyahAudioUrl,
-  getAyahFallbackAudioUrl,
-  getSurahFullAudioUrl,
-  getSurahFullFallbackAudioUrl,
   isValidQariId
 } from '../services/quranApi';
-import { sanitizeAudioUrl } from '../utils/security';
 import {
   AudioTrackTarget,
-  PersistedAudioSession,
-  computeNextAudioTrack,
-  saveAudioSessionToBrowser
+  PersistedAudioSession
 } from '../utils/sessionPersistence';
+import {
+  PLAYBACK_SPEEDS,
+  EngineUiSnapshot,
+  backgroundAudioEngine
+} from '../utils/backgroundAudioEngine';
 
 export interface PlayingAudioState {
   surahNomor: number;
@@ -48,10 +46,9 @@ interface AudioPlayerBarProps {
   onPrevAyah: () => void;
   onAdvanceTrack?: (nextTrack: AudioTrackTarget) => void;
   onAutoplayBlocked?: () => void;
+  onExternalPause?: () => void;
   onTogglePlayPause: () => void;
 }
-
-const PLAYBACK_SPEEDS = [0.75, 1, 1.25, 1.5];
 
 export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   currentPlaying,
@@ -63,626 +60,84 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
   onPrevAyah,
   onAdvanceTrack,
   onAutoplayBlocked,
+  onExternalPause,
   onTogglePlayPause
 }) => {
   const activeQariId: QariId = isValidQariId(selectedQariId) ? selectedQariId : DEFAULT_QARI_ID;
   const activeQari = getQariById(activeQariId);
 
-  const [isRepeat, setIsRepeat] = useState<boolean>(() => Boolean(initialAudioSession?.isRepeat));
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(() =>
-    initialAudioSession?.currentTime && initialAudioSession.currentTime > 0
-      ? initialAudioSession.currentTime
-      : 0
-  );
-  const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolume] = useState<number>(1);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [speedIndex, setSpeedIndex] = useState<number>(() =>
-    typeof initialAudioSession?.speedIndex === 'number' &&
-    initialAudioSession.speedIndex >= 0 &&
-    initialAudioSession.speedIndex < PLAYBACK_SPEEDS.length
-      ? initialAudioSession.speedIndex
-      : 1
+  const configuredInitialRef = useRef(false);
+  if (!configuredInitialRef.current) {
+    configuredInitialRef.current = true;
+    if (initialAudioSession) {
+      backgroundAudioEngine.configureInitialPreferences({
+        currentTime: initialAudioSession.currentTime,
+        speedIndex: initialAudioSession.speedIndex,
+        isRepeat: initialAudioSession.isRepeat
+      });
+    }
+  }
+
+  const [engineSnap, setEngineSnap] = useState<EngineUiSnapshot>(() =>
+    backgroundAudioEngine.getSnapshot()
   );
 
-  // Persistent DOM <audio> elements (never unmounted so mobile OS / PWA background playback stays alive)
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
-  const lastLoadedUrlRef = useRef<string>('');
-  const lastPreloadedUrlRef = useRef<string>('');
-  const fallbackAttemptedRef = useRef<boolean>(false);
-  const pendingResumeTimeRef = useRef<number>(
-    initialAudioSession?.currentTime && initialAudioSession.currentTime > 0
-      ? initialAudioSession.currentTime
-      : 0
-  );
-  const initialLoadHandledRef = useRef<boolean>(false);
-  const lastPersistedTickRef = useRef<number>(0);
-  const latestCurrentTimeRef = useRef<number>(currentTime);
-
-  const latestStateRef = useRef({
-    currentPlaying,
-    isRepeat,
-    activeQariId,
-    activeQariName: activeQari.nama,
-    speedIndex,
-    onNextAyah,
-    onPrevAyah,
+  // Keep engine callbacks synchronized with latest React handlers on every render
+  backgroundAudioEngine.setCallbacks({
     onAdvanceTrack,
     onAutoplayBlocked,
+    onExternalPause,
     onTogglePlayPause,
+    onNextAyah,
+    onPrevAyah,
     onClose
   });
 
-  latestStateRef.current = {
-    currentPlaying,
-    isRepeat,
-    activeQariId,
-    activeQariName: activeQari.nama,
-    speedIndex,
-    onNextAyah,
-    onPrevAyah,
-    onAdvanceTrack,
-    onAutoplayBlocked,
-    onTogglePlayPause,
-    onClose
-  };
-
-  const syncMediaPositionState = (audio: HTMLAudioElement) => {
-    if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) return;
-    if (typeof navigator.mediaSession.setPositionState !== 'function') return;
-    const dur = audio.duration;
-    if (!dur || !Number.isFinite(dur) || dur <= 0) return;
-    const pos = Math.max(0, Math.min(dur, Number.isFinite(audio.currentTime) ? audio.currentTime : 0));
-    const rate = Number.isFinite(audio.playbackRate) && audio.playbackRate > 0 ? audio.playbackRate : 1;
-    try {
-      navigator.mediaSession.setPositionState({
-        duration: dur,
-        playbackRate: rate,
-        position: pos
-      });
-    } catch {
-      // Ignore unsupported positionState values on older WebViews
-    }
-  };
-
-  const persistSnapshot = (overridePlaying?: boolean) => {
-    const { currentPlaying: active, speedIndex: sIdx, isRepeat: repeat } = latestStateRef.current;
-    if (!active) return;
-    const audio = audioRef.current;
-    const liveTime =
-      audio && Number.isFinite(audio.currentTime) && audio.currentTime > 0
-        ? audio.currentTime
-        : latestCurrentTimeRef.current;
-
-    saveAudioSessionToBrowser({
-      surahNomor: active.surahNomor,
-      ayahNomor: active.ayahNomor,
-      audioUrl: active.audioUrl,
-      isPlaying: overridePlaying ?? active.isPlaying,
-      isFullSurah: Boolean(active.isFullSurah),
-      currentTime: liveTime,
-      speedIndex: sIdx,
-      isRepeat: repeat,
-      updatedAt: Date.now()
-    });
-  };
-
-  // Configure persistent DOM <audio> attributes and attach lifecycle listeners once
+  // Mount dual off-screen persistent <audio> decks on document.body once and subscribe to snapshots
   useEffect(() => {
-    const audio = audioRef.current;
-    const preloadAudio = preloadAudioRef.current;
-    if (!audio) return;
-
-    audio.setAttribute('playsinline', 'true');
-    audio.setAttribute('webkit-playsinline', 'true');
-    if (preloadAudio) {
-      preloadAudio.setAttribute('playsinline', 'true');
-      preloadAudio.setAttribute('webkit-playsinline', 'true');
-    }
-
-    const handleWaiting = () => {
-      if (latestStateRef.current.currentPlaying?.isPlaying) {
-        setIsLoading(true);
-      }
-    };
-
-    const handlePlaying = () => {
-      setIsLoading(false);
-      syncMediaPositionState(audio);
-    };
-
-    const handleCanPlay = () => {
-      setIsLoading(false);
-    };
-
-    const handleLoadedMetadata = () => {
-      if (audio.duration && !Number.isNaN(audio.duration) && Number.isFinite(audio.duration)) {
-        setDuration(audio.duration);
-        if (pendingResumeTimeRef.current > 0) {
-          const safeTarget = Math.min(
-            pendingResumeTimeRef.current,
-            Math.max(0, audio.duration - 0.5)
-          );
-          try {
-            audio.currentTime = safeTarget;
-            latestCurrentTimeRef.current = safeTarget;
-            setCurrentTime(safeTarget);
-          } catch {
-            // Ignore seek before ready quirks
-          }
-          pendingResumeTimeRef.current = 0;
-        }
-      }
-      setIsLoading(false);
-      syncMediaPositionState(audio);
-    };
-
-    const handleTimeUpdate = () => {
-      const nowTime = audio.currentTime;
-      latestCurrentTimeRef.current = nowTime;
-      setCurrentTime(nowTime);
-      if (audio.duration && !Number.isNaN(audio.duration) && Number.isFinite(audio.duration)) {
-        setDuration(audio.duration);
-      }
-
-      const nowMs = Date.now();
-      if (nowMs - lastPersistedTickRef.current >= 2000) {
-        lastPersistedTickRef.current = nowMs;
-        persistSnapshot();
-        syncMediaPositionState(audio);
-      }
-    };
-
-    // CRITICAL FOR BACKGROUND PLAYBACK:
-    // Advance and call audio.play() synchronously inside the native 'ended' event tick
-    // BEFORE yielding to React's async render cycle so iOS Safari / Android Chrome keep background audio privilege.
-    const handleEnded = () => {
-      setIsLoading(false);
-      const {
-        currentPlaying: active,
-        isRepeat: repeat,
-        activeQariId: qari,
-        speedIndex: sIdx,
-        onAdvanceTrack: advance,
-        onNextAyah: nextCb
-      } = latestStateRef.current;
-
-      if (!active) return;
-
-      if (repeat) {
-        audio.currentTime = 0;
-        latestCurrentTimeRef.current = 0;
-        setCurrentTime(0);
-        audio.play().catch(() => {});
-        return;
-      }
-
-      const nextTrack = computeNextAudioTrack(
-        {
-          surahNomor: active.surahNomor,
-          ayahNomor: active.ayahNomor,
-          isFullSurah: Boolean(active.isFullSurah)
-        },
-        qari
-      );
-
-      if (nextTrack) {
-        const safeNextUrl = sanitizeAudioUrl(nextTrack.audioUrl, nextTrack.audioUrl);
-        if (safeNextUrl) {
-          lastLoadedUrlRef.current = safeNextUrl;
-          fallbackAttemptedRef.current = false;
-          pendingResumeTimeRef.current = 0;
-          latestCurrentTimeRef.current = 0;
-          setCurrentTime(0);
-          setDuration(0);
-          setIsLoading(true);
-
-          audio.src = safeNextUrl;
-          audio.playbackRate = PLAYBACK_SPEEDS[sIdx] ?? 1;
-          audio.load();
-          audio.play().catch(() => {});
-        }
-
-        saveAudioSessionToBrowser({
-          ...nextTrack,
-          currentTime: 0,
-          speedIndex: sIdx,
-          isRepeat: repeat,
-          updatedAt: Date.now()
-        });
-
-        if (advance) {
-          advance(nextTrack);
-        } else {
-          nextCb();
-        }
-      } else {
-        // Reached end of Surah 114 (An-Nas)
-        latestCurrentTimeRef.current = 0;
-        saveAudioSessionToBrowser({
-          surahNomor: active.surahNomor,
-          ayahNomor: active.ayahNomor,
-          audioUrl: active.audioUrl,
-          isPlaying: false,
-          isFullSurah: Boolean(active.isFullSurah),
-          currentTime: 0,
-          speedIndex: sIdx,
-          isRepeat: repeat,
-          updatedAt: Date.now()
-        });
-        if (advance) {
-          advance({
-            surahNomor: active.surahNomor,
-            ayahNomor: active.ayahNomor,
-            audioUrl: active.audioUrl,
-            isPlaying: false,
-            isFullSurah: Boolean(active.isFullSurah)
-          });
-        }
-      }
-    };
-
-    const handleError = () => {
-      setIsLoading(false);
-      const { currentPlaying: active, activeQariId: qari } = latestStateRef.current;
-      if (!active || !lastLoadedUrlRef.current) return;
-
-      console.warn('Audio playback error on primary URL:', audio.src);
-
-      // Automatically fallback to verified secondary CDN if primary URL fails
-      if (!fallbackAttemptedRef.current) {
-        fallbackAttemptedRef.current = true;
-        const fallbackUrl = active.isFullSurah
-          ? getSurahFullFallbackAudioUrl(active.surahNomor, qari)
-          : getAyahFallbackAudioUrl(active.surahNomor, active.ayahNomor, qari);
-        const safeFallback = sanitizeAudioUrl(fallbackUrl, fallbackUrl);
-        if (safeFallback && safeFallback !== audio.src) {
-          console.info('Switching to secondary fallback audio source:', safeFallback);
-          lastLoadedUrlRef.current = safeFallback;
-          audio.src = safeFallback;
-          audio.load();
-          if (active.isPlaying) {
-            audio.play().catch(() => {});
-          }
-        }
-      }
-    };
-
-    // Keep playback alive when user minimizes browser / switches apps / locks screen
-    const handleVisibilityChange = () => {
-      persistSnapshot();
-      const { currentPlaying: active } = latestStateRef.current;
-      if (document.visibilityState === 'hidden' && active?.isPlaying && audio.paused && audio.src) {
-        audio.play().catch(() => {});
-      }
-    };
-
-    const handlePageFlush = () => {
-      persistSnapshot();
-    };
-
-    audio.addEventListener('waiting', handleWaiting);
-    audio.addEventListener('playing', handlePlaying);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('pagehide', handlePageFlush);
-    window.addEventListener('beforeunload', handlePageFlush);
-
-    return () => {
-      audio.removeEventListener('waiting', handleWaiting);
-      audio.removeEventListener('playing', handlePlaying);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('pagehide', handlePageFlush);
-      window.removeEventListener('beforeunload', handlePageFlush);
-    };
+    return backgroundAudioEngine.subscribe(setEngineSnap);
   }, []);
 
-  // Load / switch / pause / teardown audio source when currentPlaying or Qari changes
+  // Synchronize cold-hydrated or external React state transitions idempotently
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    if (!currentPlaying) {
-      if (lastLoadedUrlRef.current || audio.getAttribute('src')) {
-        audio.pause();
-        audio.removeAttribute('src');
-        audio.load();
-        lastLoadedUrlRef.current = '';
-        lastPreloadedUrlRef.current = '';
-        pendingResumeTimeRef.current = 0;
-        latestCurrentTimeRef.current = 0;
-        setCurrentTime(0);
-        setDuration(0);
-        setIsLoading(false);
-      }
-      if (preloadAudioRef.current?.getAttribute('src')) {
-        preloadAudioRef.current.removeAttribute('src');
-        preloadAudioRef.current.load();
-      }
-      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
-        try {
-          navigator.mediaSession.playbackState = 'none';
-        } catch {
-          // ignore
-        }
-      }
-      return;
-    }
-
-    const defaultTrustedUrl = currentPlaying.isFullSurah
-      ? getSurahFullAudioUrl(currentPlaying.surahNomor, activeQariId)
-      : getAyahAudioUrl(currentPlaying.surahNomor, currentPlaying.ayahNomor, activeQariId);
-    const safeUrl = sanitizeAudioUrl(currentPlaying.audioUrl, defaultTrustedUrl);
-
-    if (safeUrl && lastLoadedUrlRef.current !== safeUrl) {
-      const isInitialColdRestore = !initialLoadHandledRef.current && pendingResumeTimeRef.current > 0;
-      initialLoadHandledRef.current = true;
-
-      if (!isInitialColdRestore) {
-        pendingResumeTimeRef.current = 0;
-        latestCurrentTimeRef.current = 0;
-        setCurrentTime(0);
-      }
-
-      lastLoadedUrlRef.current = safeUrl;
-      fallbackAttemptedRef.current = false;
-      setDuration(0);
-      setIsLoading(Boolean(currentPlaying.isPlaying));
-
-      audio.src = safeUrl;
-      audio.playbackRate = PLAYBACK_SPEEDS[speedIndex] ?? 1;
-      audio.load();
-
-      if (currentPlaying.isPlaying) {
-        audio.play().catch((err) => {
-          setIsLoading(false);
-          if (err && (err.name === 'NotAllowedError' || String(err).includes('NotAllowedError'))) {
-            // Browser requires a single tap after a cold page refresh; keep player open at exact saved timestamp
-            persistSnapshot(false);
-            latestStateRef.current.onAutoplayBlocked?.();
-          } else if (err && err.name === 'AbortError') {
-            // Expected when rapidly advancing to the next ayah before previous play() resolves
-          } else {
-            console.warn('Playback deferred due to browser policy:', err);
-          }
-        });
-      }
-    } else {
-      initialLoadHandledRef.current = true;
-      audio.playbackRate = PLAYBACK_SPEEDS[speedIndex] ?? 1;
-      if (currentPlaying.isPlaying && audio.paused) {
-        audio.play().catch((err) => {
-          setIsLoading(false);
-          if (err && (err.name === 'NotAllowedError' || String(err).includes('NotAllowedError'))) {
-            persistSnapshot(false);
-            latestStateRef.current.onAutoplayBlocked?.();
-          }
-        });
-      } else if (!currentPlaying.isPlaying && !audio.paused) {
-        audio.pause();
-        setIsLoading(false);
-      }
-    }
+    backgroundAudioEngine.syncFromReactState(currentPlaying, activeQariId);
   }, [
     currentPlaying?.surahNomor,
     currentPlaying?.ayahNomor,
     currentPlaying?.audioUrl,
     currentPlaying?.isPlaying,
     currentPlaying?.isFullSurah,
-    speedIndex,
     activeQariId
   ]);
 
-  // Preload next ayah audio in background so lock-screen / minimized track transitions have zero network gap
-  useEffect(() => {
-    const preloadAudio = preloadAudioRef.current;
-    if (!preloadAudio || !currentPlaying || currentPlaying.isFullSurah) return;
-
-    const nextTrack = computeNextAudioTrack(
-      {
-        surahNomor: currentPlaying.surahNomor,
-        ayahNomor: currentPlaying.ayahNomor,
-        isFullSurah: false
-      },
-      activeQariId
-    );
-    if (!nextTrack) return;
-
-    const safePreloadUrl = sanitizeAudioUrl(nextTrack.audioUrl, nextTrack.audioUrl);
-    if (safePreloadUrl && lastPreloadedUrlRef.current !== safePreloadUrl) {
-      lastPreloadedUrlRef.current = safePreloadUrl;
-      preloadAudio.src = safePreloadUrl;
-      preloadAudio.load();
-    }
-  }, [currentPlaying?.surahNomor, currentPlaying?.ayahNomor, currentPlaying?.isFullSurah, activeQariId]);
-
-  // Persist audio session whenever track, play/pause, speed, or repeat changes
-  useEffect(() => {
-    if (!currentPlaying) return;
-    persistSnapshot();
-  }, [
-    currentPlaying?.surahNomor,
-    currentPlaying?.ayahNomor,
-    currentPlaying?.audioUrl,
-    currentPlaying?.isPlaying,
-    currentPlaying?.isFullSurah,
+  const {
+    currentTime,
+    duration,
+    isLoading,
+    volume,
+    isMuted,
     speedIndex,
     isRepeat
-  ]);
-
-  // Sync with Android & iOS Lock Screen / Control Center / Notification Shade via Media Session API
-  useEffect(() => {
-    if (!currentPlaying || typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
-      return;
-    }
-
-    const meta = SURAH_METADATA_LIST.find((s) => s.nomor === currentPlaying.surahNomor);
-    const trackTitle = currentPlaying.isFullSurah
-      ? `Surah ${meta?.namaLatin || currentPlaying.surahNomor} (Lengkap)`
-      : `QS. ${meta?.namaLatin || currentPlaying.surahNomor} : Ayat ${currentPlaying.ayahNomor}`;
-
-    const icon192 =
-      typeof window !== 'undefined'
-        ? new URL('./pwa-192x192.png', window.location.href).href
-        : './pwa-192x192.png';
-    const icon512 =
-      typeof window !== 'undefined'
-        ? new URL('./pwa-512x512.png', window.location.href).href
-        : './pwa-512x512.png';
-
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: trackTitle,
-        artist: activeQari.nama,
-        album: "Al-Qur'an Digital",
-        artwork: [
-          { src: icon192, sizes: '192x192', type: 'image/png' },
-          { src: icon512, sizes: '512x512', type: 'image/png' }
-        ]
-      });
-      navigator.mediaSession.playbackState = currentPlaying.isPlaying ? 'playing' : 'paused';
-    } catch {
-      // Ignore partial MediaSession metadata support
-    }
-
-    const safeSetAction = (
-      action: MediaSessionAction,
-      handler: MediaSessionActionHandler | null
-    ) => {
-      try {
-        navigator.mediaSession.setActionHandler(action, handler);
-      } catch {
-        // Ignore unsupported MediaSessionAction on specific browsers
-      }
-    };
-
-    safeSetAction('play', () => {
-      const audio = audioRef.current;
-      if (audio && audio.paused) {
-        audio.play().catch(() => {});
-      }
-      if (!latestStateRef.current.currentPlaying?.isPlaying) {
-        latestStateRef.current.onTogglePlayPause();
-      }
-    });
-
-    safeSetAction('pause', () => {
-      const audio = audioRef.current;
-      if (audio && !audio.paused) {
-        audio.pause();
-      }
-      if (latestStateRef.current.currentPlaying?.isPlaying) {
-        latestStateRef.current.onTogglePlayPause();
-      }
-    });
-
-    safeSetAction('previoustrack', () => {
-      latestStateRef.current.onPrevAyah();
-    });
-
-    safeSetAction('nexttrack', () => {
-      latestStateRef.current.onNextAyah();
-    });
-
-    safeSetAction('seekbackward', (details) => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      const offset = details.seekOffset || 10;
-      const nextTime = Math.max(0, audio.currentTime - offset);
-      audio.currentTime = nextTime;
-      latestCurrentTimeRef.current = nextTime;
-      setCurrentTime(nextTime);
-      syncMediaPositionState(audio);
-    });
-
-    safeSetAction('seekforward', (details) => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      const offset = details.seekOffset || 10;
-      const maxDur = audio.duration && Number.isFinite(audio.duration) ? audio.duration : audio.currentTime + offset;
-      const nextTime = Math.min(maxDur, audio.currentTime + offset);
-      audio.currentTime = nextTime;
-      latestCurrentTimeRef.current = nextTime;
-      setCurrentTime(nextTime);
-      syncMediaPositionState(audio);
-    });
-
-    safeSetAction('seekto', (details) => {
-      const audio = audioRef.current;
-      if (typeof details.seekTime === 'number' && audio) {
-        audio.currentTime = details.seekTime;
-        latestCurrentTimeRef.current = details.seekTime;
-        setCurrentTime(details.seekTime);
-        syncMediaPositionState(audio);
-      }
-    });
-
-    safeSetAction('stop', () => {
-      latestStateRef.current.onClose();
-    });
-
-    if (audioRef.current) {
-      syncMediaPositionState(audioRef.current);
-    }
-  }, [
-    currentPlaying?.surahNomor,
-    currentPlaying?.ayahNomor,
-    currentPlaying?.isFullSurah,
-    currentPlaying?.isPlaying,
-    activeQari.nama
-  ]);
+  } = engineSnap;
 
   const currentSurahMeta = currentPlaying
     ? SURAH_METADATA_LIST.find((s) => s.nomor === currentPlaying.surahNomor)
     : undefined;
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = Number(e.target.value);
-    latestCurrentTimeRef.current = newTime;
-    setCurrentTime(newTime);
-    if (audioRef.current) {
-      audioRef.current.currentTime = newTime;
-      syncMediaPositionState(audioRef.current);
-    }
-    persistSnapshot();
+    backgroundAudioEngine.seekTo(Number(e.target.value));
   };
 
   const handleSpeedToggle = () => {
-    const nextIdx = (speedIndex + 1) % PLAYBACK_SPEEDS.length;
-    setSpeedIndex(nextIdx);
-    if (audioRef.current) {
-      audioRef.current.playbackRate = PLAYBACK_SPEEDS[nextIdx];
-      syncMediaPositionState(audioRef.current);
-    }
+    backgroundAudioEngine.toggleSpeed();
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = Number(e.target.value);
-    setVolume(val);
-    if (audioRef.current) {
-      audioRef.current.volume = val;
-      audioRef.current.muted = val === 0;
-      setIsMuted(val === 0);
-    }
+    backgroundAudioEngine.setVolumeLevel(Number(e.target.value));
   };
 
   const handleToggleMute = () => {
-    if (audioRef.current) {
-      const nextMuted = !isMuted;
-      setIsMuted(nextMuted);
-      audioRef.current.muted = nextMuted;
-    }
+    backgroundAudioEngine.toggleMute();
   };
 
   const formatTime = (secs: number) => {
@@ -694,21 +149,6 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
 
   return (
     <>
-      {/* Persistent DOM media elements — never unmounted so background playback survives app switching & screen lock */}
-      <audio
-        id="quran-background-audio"
-        ref={audioRef}
-        preload="auto"
-        className="hidden"
-        aria-hidden="true"
-      />
-      <audio
-        ref={preloadAudioRef}
-        preload="auto"
-        className="hidden"
-        aria-hidden="true"
-      />
-
       {currentPlaying && (
         <aside
           aria-label="Pemutar Audio Murottal"
@@ -772,7 +212,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
                           }
                         }}
                         aria-label="Pilih Qari Pemutar Audio"
-                        className="!text-[11px] leading-tight font-medium text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] bg-transparent hover:underline focus:outline-none cursor-pointer truncate max-w-[140px] sm:max-w-[210px] py-0.5"
+                        className="!text-[11px] leading-tight font-medium text-emerald-700 dark:text-emerald-400 [body.theme-sepia_&]:text-[#4d3c2a] bg-transparent hover:underline focus:outline-none cursor-pointer truncate max-w-[112px] sm:max-w-[210px] py-0.5"
                       >
                         {QARI_OPTIONS.map((q) => (
                           <option
@@ -798,7 +238,7 @@ export const AudioPlayerBar: React.FC<AudioPlayerBarProps> = ({
                 
                 {/* Repeat Ayah */}
                 <button
-                  onClick={() => setIsRepeat(!isRepeat)}
+                  onClick={() => backgroundAudioEngine.toggleRepeat()}
                   aria-label="Ulangi Ayat Ini"
                   title={isRepeat ? 'Ulangi Ayat (Aktif)' : 'Ulangi Ayat (Nonaktif)'}
                   className={`min-w-9 min-h-10 sm:min-w-0 sm:min-h-0 p-1.5 sm:p-2 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
