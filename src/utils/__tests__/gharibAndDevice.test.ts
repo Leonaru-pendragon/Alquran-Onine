@@ -27,7 +27,8 @@ test('renderTajwidHtml hanya mewarnai kaidah Pelajaran Ilmu Tajwid Praktis (Qira
 
   const qiyamah27Html = renderTajwidHtml('وَقِيْلَ مَنْ \u06DCرَاقٍۙ', true);
   assert.equal(qiyamah27Html.includes('gharib-saktah'), false);
-  assert.ok(qiyamah27Html.includes('مَنْ\u06DC رَاقٍ'));
+  assert.equal(qiyamah27Html.includes('idgham-bilaghunnah'), false);
+  assert.ok(qiyamah27Html.replace(/<[^>]+>/g, '').includes('مَنْ\u06DC رَاقٍ'));
 });
 
 test('validateReadingSettings mengabaikan properti lama showGharib dari localStorage agar pengaturan bersih', () => {

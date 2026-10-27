@@ -3,26 +3,15 @@ import {
   TajwidBookQuestion,
   TajwidQuizQuestion
 } from '../types/quran';
-import { escapeHtml } from '../utils/security';
+import {
+  normalizeQuranicText,
+  tokenizeTajwidText,
+  renderTajwidHtml,
+  cleanTajwidSampleText,
+  type TajwidOccurrenceSummary
+} from './tajwidEngine';
 
-/**
- * Menormalkan spasi sebelum tanda waqaf/saktah/nun-wiqayah mushaf agar tidak merender kotak .notdef
- * dan tetap menjaga spasi antar-kata di Mushaf Kemenag RI maupun Utsmani.
- */
-export function normalizeQuranicText(text: string): string {
-  return (
-    text
-      .replace(/(^|\s+)\u06E8([\u064E-\u0652]?)([\u0627\u0671])/g, '$1$3\u06E8$2')
-      .replace(
-        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\S)/g,
-        '$1$2 '
-      )
-      .replace(
-        /(\S)\s+([\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06EA-\u06ED][\u064E-\u0652]?)(?=\s|$)/g,
-        '$1$2'
-      )
-  );
-}
+export { normalizeQuranicText, renderTajwidHtml, type TajwidOccurrenceSummary };
 
 export const TAJWID_PDF_FILENAME =
   'pdf-p-classtruncatedtext-module-lineclamped-85ulhh-style-max-lines5tajwid-praktis-p_compress_91d71235.pdf';
@@ -273,7 +262,7 @@ export const TAJWID_RULES: TajwidRule[] = [
     nama: '4. Idzhar',
     kategori: 'Pelajaran 3: Nun Sukun / Tanwin (5)',
     warna: 'tajwid-izhar',
-    hexColor: '#475569',
+    hexColor: '#0f766e',
     kadarHarakat: 'Dibaca jelas tanpa dengung',
     aktifDiMushaf: true,
     deskripsi:
@@ -480,10 +469,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: 'مْ ← ..... (selain م dan ب)',
     nama: '3. Idzhar Syafawi',
     kategori: 'Pelajaran 4: Mim Sukun (3)',
-    warna: 'tajwid-izhar',
-    hexColor: '#475569',
+    warna: 'tajwid-izhar-syafawi',
+    hexColor: '#334155',
     kadarHarakat: 'Dibaca jelas tanpa dengung',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Yang dinamakan Idzhar Syafawi ialah Mim Sukun bertemu huruf selain Mim dan Ba.',
     caraBaca:
@@ -796,10 +785,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: '(ب) ❖ (ج ح خ) ❖ (ع غ ف ق ك) ❖ (م و هـ) ❖ (ء ي)',
     nama: 'Al Qamariyah (14 Huruf)',
     kategori: 'Pelajaran 10–11: Al & Idzhar Wajib',
-    warna: 'tajwid-izhar',
-    hexColor: '#475569',
+    warna: 'tajwid-al-qamariyah',
+    hexColor: '#2563eb',
     kadarHarakat: 'Lam sukun (الْ) dibaca jelas',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Al (ال) yang bertemu salah satu dari 14 huruf Qamariyah dinamakan bacaan Al Qamariyah.',
     caraBaca:
@@ -826,7 +815,7 @@ export const TAJWID_RULES: TajwidRule[] = [
     nama: 'Idzhar Wajib',
     kategori: 'Pelajaran 10–11: Al & Idzhar Wajib',
     warna: 'tajwid-izhar',
-    hexColor: '#475569',
+    hexColor: '#0f766e',
     kadarHarakat: 'Dibaca jelas tanpa dengung (tidak dilebur)',
     aktifDiMushaf: true,
     deskripsi:
@@ -858,10 +847,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: 'Huruf Isti\'la\' 7: خ ص ض ط ظ غ ق',
     nama: '1. Ra Tafkhim (Tebal)',
     kategori: 'Pelajaran 12: Hukum Ra (2)',
-    warna: 'tajwid-al-syamsiyah',
-    hexColor: '#ea580c',
+    warna: 'tajwid-ra-tafkhim',
+    hexColor: '#c2410c',
     kadarHarakat: 'Dibaca tebal (6 sebab)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Hukum Ra ada dua: Tafkhim dan Tarqiq. Ra dibaca Tafkhim dalam 6 keadaan: (1) Ra fathah / fathah tanwin, (2) Ra dhummah / dhummah tanwin, (3) Ra hidup didahului huruf mati selain Ya\' yang sebelumnya ada fathah/dhummah dibaca waqaf, (4) Ra Sukun didahului fathah/dhummah, (5) Ra Sukun didahului kasroh ada Hamzah washal, (6) Ra Sukun didahului kasroh bertemu huruf Isti\'la\'.',
     caraBaca:
@@ -927,10 +916,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: 'رِ - رٍ · ـِ رْ · ـَيْرْ · ـِ ْ رْ',
     nama: '2. Ra Tarqiq (Tipis)',
     kategori: 'Pelajaran 12: Hukum Ra (2)',
-    warna: 'tajwid-izhar',
-    hexColor: '#475569',
+    warna: 'tajwid-ra-tarqiq',
+    hexColor: '#0e7490',
     kadarHarakat: 'Dibaca tipis (4 sebab)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Ra dibaca Tarqiq (tipis) dalam 4 keadaan: (1) Ra kasroh / Ra kasroh tanwin, (2) Ra Sukun didahului kasroh, (3) Ra hidup didahului Ya Sukun dibaca waqaf, (4) Ra hidup didahului huruf mati selain Ya\' yang sebelumnya ada kasroh dibaca waqaf.',
     caraBaca:
@@ -986,10 +975,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: 'دَا - دِيْ - دُوْ',
     nama: "Mad Thabi'i (Mad Ashli)",
     kategori: "Pelajaran 13: Hukum Mad (Thabi'i & 13 Far'i)",
-    warna: 'tajwid-mad-shilah',
-    hexColor: '#7c3aed',
+    warna: 'tajwid-mad-thabii',
+    hexColor: '#6d28d9',
     kadarHarakat: '1 Alif (2 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       "Hukum Mad dibagi dua: Mad Thabi'i (atau Mad Ashli) dan Mad Far'i. Yang dinamakan Mad Thabi'i ialah: fathah diikuti Alif, kasroh diikuti Ya, dhummah diikuti Wawu. Dan panjang Mad Thabi'i satu alif (dua harakat).",
     caraBaca:
@@ -1079,10 +1068,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: "Mad Thabi'i + huruf hidup dibaca waqaf",
     nama: "Ke-3: Mad 'Aridh Lissukun",
     kategori: "Pelajaran 13: Hukum Mad (Thabi'i & 13 Far'i)",
-    warna: 'tajwid-mad-shilah',
-    hexColor: '#7c3aed',
+    warna: 'tajwid-mad-aridh',
+    hexColor: '#a21caf',
     kadarHarakat: '3 (tiga) Alif (6 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       "Yang dinamakan Mad 'Aridh Lissukun ialah: Mad Thabi'i bertemu huruf hidup dibaca waqaf. Panjangnya Mad 3 (tiga) Alif.",
     caraBaca:
@@ -1111,7 +1100,7 @@ export const TAJWID_RULES: TajwidRule[] = [
     warna: 'tajwid-mad-shilah',
     hexColor: '#7c3aed',
     kadarHarakat: '1 (satu) Alif (2 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       "Yang dinamakan Mad 'Iwadh ialah: kalimat fathah tanwin dibaca waqaf, selain Ta' Marbuthah. Panjangnya Mad 1 (satu) Alif.",
     caraBaca:
@@ -1187,7 +1176,7 @@ export const TAJWID_RULES: TajwidRule[] = [
     warna: 'tajwid-mad-shilah',
     hexColor: '#7c3aed',
     kadarHarakat: '1 (satu) Alif (2 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Yang dinamakan Mad Badal ialah setiap Aa, Ii, Uu yang dibaca panjang. Panjangnya Mad Badal 1 (satu) Alif.',
     caraBaca:
@@ -1242,10 +1231,10 @@ export const TAJWID_RULES: TajwidRule[] = [
     rumusArab: 'ـَوْ / ـَيْ + huruf hidup dibaca Waqaf',
     nama: 'Ke-8: Mad Lin',
     kategori: "Pelajaran 13: Hukum Mad (Thabi'i & 13 Far'i)",
-    warna: 'tajwid-mad-shilah',
-    hexColor: '#7c3aed',
+    warna: 'tajwid-mad-aridh',
+    hexColor: '#a21caf',
     kadarHarakat: '3 (tiga) Alif (6 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Yang dinamakan Mad Lin ialah fathah diikuti Wawu atau Ya Sukun (ـَوْ / ـَيْ), bertemu huruf hidup dibaca Waqaf. Dan panjangnya tiga Alif.',
     caraBaca:
@@ -1363,7 +1352,7 @@ export const TAJWID_RULES: TajwidRule[] = [
     warna: 'tajwid-mad-shilah',
     hexColor: '#7c3aed',
     kadarHarakat: '1 (satu) Alif (2 harakat)',
-    aktifDiMushaf: false,
+    aktifDiMushaf: true,
     deskripsi:
       'Yang dinamakan Mad Lazim Mukhaffaf Harfi ialah huruf (pembuka surah) yang dibaca panjang 1 (satu) Alif, jumlahnya 5 (lima) huruf: ح ي ط هـ ر.',
     caraBaca:
@@ -1957,262 +1946,6 @@ export const TAJWID_QUIZ_QUESTIONS: TajwidQuizQuestion[] = [
   }
 ];
 
-// ============================================================================
-// PLACEHOLDER-PROTECTED TAJWID HIGHLIGHTING & OCCURRENCE ENGINE
-// (Aligned 100% with Pelajaran 1–13 of Ilmu Tajwid Praktis — Metode Qira'ati)
-// ============================================================================
-
-export interface TajwidOccurrenceSummary {
-  ruleId: string;
-  nama: string;
-  warna: string;
-  hexColor: string;
-  count: number;
-  samples: string[];
-}
-
-interface TajwidToken {
-  ruleId: string;
-  warna: string;
-  text: string;
-}
-
-/**
- * Internal tokenizer that detects Tajwid segments in priority order using
- * private-use Unicode placeholders (\uE000idx\uE001) so rules never nest or
- * corrupt generated HTML markup.
- */
-function tokenizeTajwidText(arabicText: string): {
-  tokenizedText: string;
-  tokens: TajwidToken[];
-} {
-  const normalized = normalizeQuranicText(arabicText);
-
-  const tokens: TajwidToken[] = [];
-  const pushToken = (ruleId: string, warna: string, matchedText: string): string => {
-    const idx = tokens.length;
-    tokens.push({ ruleId, warna, text: matchedText });
-    return `\uE000${idx}\uE001`;
-  };
-
-  const hasHarakat = /[\u0622\u064B-\u0653\u0670\u06E1\u06E2]/.test(normalized);
-  let text = normalized;
-
-  // Shaddah with optional harakat before or after (handles both Uthmani & NFC canonical order)
-  const SHADDAH_SEQ = '[\\u064B-\\u0650]*\\u0651[\\u064B-\\u0650\\u0670]*';
-  const NON_BOUNDARY = '[^\\s\\uE000\\uE001\\uE200\\uE201·۝&;<>]';
-
-  // 1a. Mad Farq (Ke-13, Hal. 34): قُلْ آللَّهُ / ءَآللَّهُ / آلذَّكَرَيْنِ
-  const madFarqRegex = new RegExp(
-    `((?:ءَ)?\\u0622ل[لذ]${SHADDAH_SEQ}${NON_BOUNDARY}{0,6})`,
-    'g'
-  );
-  text = text.replace(madFarqRegex, (m) => pushToken('mad-farq', 'tajwid-mad-lazim', m));
-
-  // 1b. Mad Lazim Mukhaffaf Kalimi (Ke-10, Hal. 32): آلْآنَ / ءَآلْـَٰٔنَ
-  text = text.replace(
-    /((?:ءَ)?\u0622ل[\u0652\u06E1][^\s\uE000\uE001\uE200\uE201·۝&;<>]{1,6})/g,
-    (m) => pushToken('mad-lazim-mukhaffaf-kalimi', 'tajwid-mad-lazim', m)
-  );
-
-  // 1c. Mad Lazim Mutsaqqal Kalimi (Ke-9, Hal. 32) & Musyba' Harfi (Ke-11, Hal. 33)
-  const madLazimKalimiRegex = new RegExp(
-    `(${NON_BOUNDARY}{0,5}(?:\\u0622|[\\u0653\\u06E4~])[اوى]?[^\\s\\uE000\\uE001\\uE200\\uE201·۝&;<>\\u064B-\\u0653\\u0670](?:${SHADDAH_SEQ}|[\\u0652\\u06E1])${NON_BOUNDARY}{0,3})`,
-    'g'
-  );
-  text = text.replace(madLazimKalimiRegex, (m) => pushToken('mad-lazim', 'tajwid-mad-lazim', m));
-
-  // Standalone Muqaththa'at letters with maddah (نٓ, قٓ, صٓ, الٓمٓ, كٓهٰيٰعٓصٓ)
-  text = text.replace(
-    /([المصقنطسعكهيرحٰ]{1,5}[\u0653\u06E4][المصقنطسعكهيرحٰ\u0653\u06E4]*)/g,
-    (m) => pushToken('mad-lazim-musyba-harfi', 'tajwid-mad-lazim', m)
-  );
-
-  // 2a. Mad Shilah Thawilah (Ke-5, Hal. 29–30): Ha dhamir + maddah + Hamzah
-  text = text.replace(
-    /([^\s\uE000\uE001\uE200\uE201·۝&;<>]{0,4}ه[\u064F\u0650][\u06E5\u06E6]?[\u0653~]\s+[أإآء][\u064E\u064F\u0650]?)/g,
-    (m) => pushToken('mad-shilah', 'tajwid-mad-shilah', m)
-  );
-
-  // 2b. Mad Jaiz Munfashil (Ke-2, Hal. 27–28): attached yā-ayyuhā / hā-ulā'i or word-end mad + Hamzah
-  text = text.replace(
-    /([يوه][\u064E]?\u0670[\u0653~][أؤإء][\u064E\u064F\u0650]?)/g,
-    (m) => pushToken('mad-jaiz-munfasil', 'tajwid-mad', m)
-  );
-  text = text.replace(
-    /([^\s\uE000\uE001\uE200\uE201·۝&;<>]{1,6}(?:\u0622|[\u0653~][\u0627\u0649\u06DF\u06E0]?)\s+[أإآء][\u064E\u064F\u0650]?)/g,
-    (m) => pushToken('mad-jaiz-munfasil', 'tajwid-mad', m)
-  );
-
-  // 3. Mad Wajib Muttashil (Ke-1, Hal. 27–28): remaining آ + hamzah in same word, or internal maddah
-  text = text.replace(
-    /([^\s\uE000\uE001\uE200\uE201·۝&;<>]{0,5}(?:\u0622[ءئؤ]|[\u0653\u06E7~])[^\s\uE000\uE001\uE200\uE201·۝&;<>]{0,4})/g,
-    (m) => pushToken('mad-wajib-muttasil', 'tajwid-mad', m)
-  );
-
-  // 4. Idzhar Wajib (Pelajaran ke-11, Hal. 23): the 4 exact words in the Qur'an
-  const idzharWajibRegex = new RegExp(
-    `((?:[ٱا]لد${SHADDAH_SEQ}|دُ)ن[\\u0652\\u06E1]?يَا|بُن[\\u0652\\u06E1]?يَ[اٰ]ن[\\u064B-\\u0652]*|صِن[\\u0652\\u06E1]?وَ[اٰ]ن[\\u064B-\\u0652]*|قِن[\\u0652\\u06E1]?وَ[اٰ]ن[\\u064B-\\u0652]*)`,
-    'g'
-  );
-  text = text.replace(idzharWajibRegex, (m) => pushToken('idzhar-wajib', 'tajwid-izhar', m));
-
-  // 5a. Lafadh Allah Tarqiq (Pelajaran ke-9, Hal. 20): preceded by kasrah (بِاللَّهِ / لِلَّهِ / بِسْمِ اللَّهِ)
-  const lamTarqiqRegex = new RegExp(
-    `((?:لِل[\\u064E\\u0651\\u0670]{1,3}هِ|بِ[ٱا]لل[\\u064E\\u0651\\u0670]{1,3}هِ)|[\\u0650]\\s+[ٱا]لل[\\u064E\\u0651\\u0670]{1,3}ه[\\u064E\\u064F\\u0650]?)`,
-    'g'
-  );
-  text = text.replace(lamTarqiqRegex, (m) =>
-    pushToken('lam-jalalah-tarqiq', 'tajwid-lafadz-allah', m)
-  );
-
-  // 5b. Lafadh Allah Tafkhim (Pelajaran ke-9, Hal. 20): remaining Allah (وَاللَّهُ / نَصْرُ اللَّهِ / ٱللَّهُ)
-  const lamTafkhimRegex = new RegExp(
-    `((?:[وف][\\u064E])?[ٱا]لل[\\u064E\\u0651\\u0670]{1,3}ه[\\u064E\\u064F\\u0650]?)`,
-    'g'
-  );
-  text = text.replace(lamTafkhimRegex, (m) =>
-    pushToken('lam-jalalah-tafkhim', 'tajwid-lafadz-allah', m)
-  );
-
-  // 6. Iqlab (Pelajaran ke-3 Bagian 3, Hal. 7): small meem + ب, or nun sukun/tanwin + ب
-  text = text.replace(
-    /((?:[^\s\uE000\uE001\uE200\uE201·۝&;<>]{0,2}[\u06E2\u06ED]\s*ب[\u064B-\u0652\u0670\u06E1]*)|(?:(?:[\u0627\u0649]?[\u064B\u064C\u064D][\u0627\u0649]?|ن[\u0652\u06E1])\s*ب[\u064B-\u0652\u0670\u06E1]*))/g,
-    (m) => pushToken('iqlab', 'tajwid-iqlab', m)
-  );
-
-  // 7. Hukum Mim Sukun (Pelajaran ke-4, Hal. 13–14): Ikhfa' Syafawi & Idgham Mitsli
-  if (hasHarakat) {
-    text = text.replace(
-      /(م[\u0652\u06E1]?\s+ب[\u064B-\u0652\u0670\u06E1]*)/g,
-      (m) => pushToken('ikhfa-syafawi', 'tajwid-ikhfa-syafawi', m)
-    );
-    text = text.replace(
-      /(م[\u0652\u06E1]?\s+م[\u064B-\u0651\u0670]*)/g,
-      (m) => pushToken('idgham-mimi', 'tajwid-idgham-mimi', m)
-    );
-  }
-
-  // 8. Idgham Bighunnah (ي و م ن) & Idgham Bilaghunnah (ل ر) across two words (skip Saktah \u06DC)
-  if (hasHarakat) {
-    text = text.replace(
-      /((?:[\u0627\u0649]?[\u064B\u064C\u064D][\u0627\u0649]?|ن[\u0652\u06E1]?))\s+([يوملنر][\u064B-\u0651\u0670]*)/g,
-      (full, p1: string, p2: string) => {
-        if (p1.includes('\u06DC')) return full;
-        const nextChar = p2[0];
-        if (nextChar === 'ل' || nextChar === 'ر') {
-          return pushToken('idgham-bilaghunnah', 'tajwid-idgham-bilaghunnah', full);
-        }
-        return pushToken('idgham-bighunnah', 'tajwid-idgham-bighunnah', full);
-      }
-    );
-  }
-
-  // 9. Idzhar (Pelajaran ke-3 Bagian 4, Hal. 8–11): Nun sukun/tanwin + [ءأإآحخعغه]
-  text = text.replace(
-    /((?:[\u0627\u0649]?[\u064B\u064C\u064D][\u0627\u0649]?\s+|ن[\u0652\u06E1]\s*)[ءأإآحخعغه][\u064B-\u0652\u0670\u06E1]*)/g,
-    (m) => pushToken('izhar-halqi', 'tajwid-izhar', m)
-  );
-
-  // 10. Ikhfa' (Pelajaran ke-3 Bagian 5, Hal. 11–12): Nun sukun/tanwin + 15 huruf Ikhfa'
-  if (hasHarakat) {
-    text = text.replace(
-      /((?:[\u0627\u0649]?[\u064B\u064C\u064D][\u0627\u0649]?|ن[\u0652\u06E1]?)\s*[تثجدذزسشصضطظفقك][\u064B-\u0652\u0670\u06E1]*)/g,
-      (m) => pushToken('ikhfa', 'tajwid-ikhfa', m)
-    );
-  }
-
-  // 11a. Idgham Mutajanisain (Pelajaran ke-6, Hal. 16–17): ت-ط, ط-ت, ت-د, د-ت, ل-ر, ذ-ظ
-  if (hasHarakat) {
-    text = text.replace(
-      /((?:ت[\u0652\u06E1]?\s*ط|ط[\u0652\u06E1]?\s*ت|ت[\u0652\u06E1]?\s*د|د[\u0652\u06E1]?\s+ت|ل[\u0652\u06E1]?\s+ر|ذ[\u0652\u06E1]?\s+ظ)[\u064B-\u0651\u0670]*)/g,
-      (full) => {
-        if (full.includes('\u06DC')) return full;
-        if (!/[\u0652\u06E1\u0651]/.test(full)) return full;
-        return pushToken('idgham-mutajanisain', 'tajwid-idgham-bilaghunnah', full);
-      }
-    );
-
-    // 11b. Idgham Mutaqarribain (Pelajaran ke-7, Hal. 17–18): ث-ذ, ق-ك, ب-م
-    text = text.replace(
-      /((?:ث[\u0652\u06E1]?\s+ذ|ق[\u0652\u06E1]?\s*ك|ب[\u0652\u06E1]?\s+م)[\u064B-\u0651\u0670]*)/g,
-      (full) => {
-        if (!/[\u0652\u06E1\u0651]/.test(full)) return full;
-        return pushToken('idgham-mutaqaribain', 'tajwid-idgham-bilaghunnah', full);
-      }
-    );
-
-    // 11c. Idgham Mutamatsilain (Pelajaran ke-5 & Hal. 35): identical consonant across word boundary (excluding م, ن, و, ي)
-    text = text.replace(
-      /(([بتثجحخدذرزسشصضطظعغفقكله])[\u0652\u06E1]?\s+\2[\u064B-\u0651\u0670]*)/g,
-      (full) => {
-        if (full.includes('\u06DC')) return full;
-        if (!/[\u0652\u06E1\u0651]/.test(full)) return full;
-        return pushToken('idgham-mutamatsilain', 'tajwid-idgham-bilaghunnah', full);
-      }
-    );
-  }
-
-  // 12. Ghunnah (Pelajaran ke-1, Hal. 1): Nun Tasydid (نّ) or Mim Tasydid (مّ)
-  const ghunnahRegex = new RegExp(`([نم]${SHADDAH_SEQ})`, 'g');
-  text = text.replace(ghunnahRegex, (m) => pushToken('ghunnah', 'tajwid-ghunnah', m));
-
-  // 13. Al Syamsiyah (Pelajaran ke-10, Hal. 22)
-  const syamsiyahRegex = new RegExp(`([ٱا]ل[تثدذرزسشصضطظل]${SHADDAH_SEQ})`, 'g');
-  text = text.replace(syamsiyahRegex, (m) =>
-    pushToken('al-syamsiyah', 'tajwid-al-syamsiyah', m)
-  );
-
-  // 14a. Qalqalah Shughra (Pelajaran ke-8, Hal. 19): [قطبجد] with explicit sukun (ْ / ۡ)
-  text = text.replace(
-    /([قطبجد][\u0652\u06E1])/g,
-    (m) => pushToken('qalqalah', 'tajwid-qalqalah', m)
-  );
-
-  // 14b. Qalqalah Kubra (Pelajaran ke-8, Hal. 19): at end of verse or segment
-  if (hasHarakat) {
-    text = text.replace(
-      /([قطبجد][\u064B-\u0651\u0670]*)(?=\s*(?:$|·|۝))/g,
-      (m) => pushToken('qalqalah-kubra', 'tajwid-qalqalah', m)
-    );
-  }
-
-  // 15a. Mad Tamkin (Pelajaran ke-13 Ke-7, Hal. 30): Ya kasrah bertasydid + Ya sukun
-  const madTamkinRegex = new RegExp(`(ي${SHADDAH_SEQ}[\\u064A\\u06E6][\\u0652\\u06E1]?)`, 'g');
-  text = text.replace(madTamkinRegex, (m) => pushToken('mad-tamkin', 'tajwid-mad-shilah', m));
-
-  // 15b. Mad Shilah Qashirah (Pelajaran ke-13 Ke-5, Hal. 29): Uthmani small waw (ۥ) or small yeh (ۦ) after Ha dhamir
-  text = text.replace(
-    /(ه[\u064F\u0650][\u06E5\u06E6])/g,
-    (m) => pushToken('mad-shilah', 'tajwid-mad-shilah', m)
-  );
-
-  return { tokenizedText: text, tokens };
-}
-
-/**
- * Intelligent helper to colorize Arabic Quran text according to Pelajaran 1–13
- * of Ilmu Tajwid Praktis (Qira'ati) with strict XSS escaping and non-nested placeholder protection.
- */
-export function renderTajwidHtml(arabicText: string, showTajwid: boolean = true): string {
-  const safeInput = escapeHtml(arabicText);
-  const normalized = normalizeQuranicText(safeInput);
-
-  if (!showTajwid) {
-    return normalized;
-  }
-
-  const { tokenizedText, tokens } = tokenizeTajwidText(normalized);
-  return tokenizedText.replace(/\uE000(\d+)\uE001/g, (_, idxStr: string) => {
-    const token = tokens[Number(idxStr)];
-    if (!token) return '';
-    if (token.ruleId === 'ghunnah') {
-      return `<span class="tajwid-ghunnah">${token.text}</span>`;
-    }
-    return `<span class="${token.warna}" data-tajwid="${token.ruleId}">${token.text}</span>`;
-  });
-}
-
 /**
  * Analyzes an Arabic verse/passage and returns grouped Tajwid rule occurrences
  * in order of appearance for the interactive Tajwid Lab & Inspector.
@@ -2224,11 +1957,12 @@ export function analyzeTajwidOccurrences(arabicText: string): TajwidOccurrenceSu
   for (const tok of tokens) {
     const rule = getTajwidRuleById(tok.ruleId);
     if (!rule) continue;
+    const sample = cleanTajwidSampleText(tok.text) || tok.text.trim();
     const existing = grouped.get(rule.id);
     if (existing) {
       existing.count += 1;
-      if (existing.samples.length < 4 && !existing.samples.includes(tok.text.trim())) {
-        existing.samples.push(tok.text.trim());
+      if (existing.samples.length < 4 && !existing.samples.includes(sample)) {
+        existing.samples.push(sample);
       }
     } else {
       grouped.set(rule.id, {
@@ -2237,7 +1971,7 @@ export function analyzeTajwidOccurrences(arabicText: string): TajwidOccurrenceSu
         warna: tok.warna,
         hexColor: rule.hexColor,
         count: 1,
-        samples: [tok.text.trim()]
+        samples: [sample]
       });
     }
   }

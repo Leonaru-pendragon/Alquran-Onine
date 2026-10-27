@@ -126,3 +126,157 @@ test('analyzeTajwidOccurrences groups detected rules accurately and resolves via
     assert.ok(getTajwidRuleById(occ.ruleId), `Rule ${occ.ruleId} must resolve in getTajwidRuleById`);
   }
 });
+
+test('All 35 operational Qiraati Tajwid rules are active in Mushaf (only theoretical Pelajaran 2 comparison note is inactive)', () => {
+  const active = TAJWID_RULES.filter((r) => r.aktifDiMushaf);
+  const inactive = TAJWID_RULES.filter((r) => !r.aktifDiMushaf);
+  assert.equal(active.length, 35);
+  assert.deepEqual(
+    inactive.map((r) => r.id),
+    ['perbedaan-nun-sukun-tanwin']
+  );
+});
+
+test('Accurate detection on real Kemenag RI (equran.id) Surah orthography, Waqf marks, and Huruf Muqaththaat', () => {
+  // 1. Surah Al-Ikhlas (112:1-4 Kemenag RI): Qalqalah Kubra across trailing waqf marks & Idzhar Halqi before Kemenag initial Alif-Hamzah
+  const ikhlas = [
+    'قُلْ هُوَ اللّٰهُ اَحَدٌۚ',
+    'اَللّٰهُ الصَّمَدُۚ',
+    'لَمْ يَلِدْ وَلَمْ يُوْلَدْۙ',
+    'وَلَمْ يَكُنْ لَّهٗ كُفُوًا اَحَدٌ ࣖ'
+  ];
+  const ikhlas1 = renderTajwidHtml(ikhlas[0], true);
+  assert.ok(ikhlas1.includes('data-tajwid="lam-jalalah-tafkhim"'));
+  assert.ok(ikhlas1.includes('data-tajwid="qalqalah-kubra"'), 'اَحَدٌۚ must trigger Qalqalah Kubra');
+
+  const ikhlas2 = renderTajwidHtml(ikhlas[1], true);
+  assert.ok(ikhlas2.includes('data-tajwid="al-syamsiyah"'));
+  assert.ok(ikhlas2.includes('data-tajwid="qalqalah-kubra"'), 'الصَّمَدُۚ must trigger Qalqalah Kubra');
+
+  const ikhlas3 = renderTajwidHtml(ikhlas[2], true);
+  assert.ok(ikhlas3.includes('data-tajwid="izhar-syafawi"'));
+  assert.ok(ikhlas3.includes('data-tajwid="qalqalah"'), 'يَلِدْ mid-verse must trigger Qalqalah Sughra');
+  assert.ok(ikhlas3.includes('data-tajwid="qalqalah-kubra"'), 'يُوْلَدْۙ verse-end must trigger Qalqalah Kubra');
+
+  const ikhlas4 = renderTajwidHtml(ikhlas[3], true);
+  assert.ok(ikhlas4.includes('data-tajwid="idgham-bilaghunnah"'));
+  assert.ok(ikhlas4.includes('data-tajwid="mad-shilah"'), 'لَّهٗ (\u0657) must trigger Mad Shilah');
+  assert.ok(ikhlas4.includes('data-tajwid="izhar-halqi"'), 'كُفُوًا اَحَدٌ must trigger Idzhar Halqi on Kemenag initial Alif-Hamzah');
+  assert.ok(ikhlas4.includes('data-tajwid="qalqalah-kubra"'), 'اَحَدٌ ࣖ must trigger Qalqalah Kubra');
+
+  // 2. Surah Al-Qadr (97:1-5 Kemenag RI): Mad Jaiz Munfasil, Ikhfa, Qalqalah, Ra Tafkhim, Mad Wajib Muttasil, Inter-word waqf
+  const qadr1 = renderTajwidHtml('اِنَّآ اَنْزَلْنٰهُ فِيْ لَيْلَةِ الْقَدْرِ', true);
+  assert.ok(qadr1.includes('class="tajwid-ghunnah"'));
+  assert.ok(qadr1.includes('data-tajwid="mad-jaiz-munfasil"'), 'اِنَّآ اَنْزَلْنٰهُ must trigger Mad Jaiz Munfasil');
+  assert.equal(qadr1.includes('data-tajwid="mad-lazim-musyba-harfi"'), false, 'اِنَّآ must NOT be misclassified as Huruf Muqaththaat');
+  assert.ok(qadr1.includes('data-tajwid="ikhfa"'));
+  assert.ok(qadr1.includes('data-tajwid="al-qamariyah"'));
+  assert.ok(qadr1.includes('data-tajwid="qalqalah"'));
+  assert.ok(qadr1.includes('data-tajwid="ra-tafkhim"'), 'الْقَدْرِ on waqaf (preceded by sukun + fathah) is Ra Tafkhim');
+
+  const qadr4 = renderTajwidHtml('تَنَزَّلُ الْمَلٰۤىِٕكَةُ وَالرُّوْحُ فِيْهَا بِاِذْنِ رَبِّهِمْۚ مِنْ كُلِّ اَمْرٍۛ', true);
+  assert.ok(qadr4.includes('data-tajwid="mad-wajib-muttasil"'), 'الْمَلٰۤىِٕكَةُ Kemenag maddah+ya-hamzah must trigger Mad Wajib Muttasil');
+  assert.ok(qadr4.includes('data-tajwid="idgham-mimi"'), 'رَبِّهِمْۚ مِنْ across waqf jaiz must trigger Idgham Mimi');
+  assert.ok(qadr4.includes('data-tajwid="ikhfa"'));
+
+  const qadr5 = renderTajwidHtml('سَلٰمٌ ۛهِيَ حَتّٰى مَطْلَعِ الْفَجْرِ ࣖ', true);
+  assert.ok(qadr5.includes('data-tajwid="izhar-halqi"'), 'سَلٰمٌ ۛهِيَ across muanaqah waqf must trigger Idzhar Halqi');
+  assert.ok(qadr5.includes('data-tajwid="qalqalah"'));
+  assert.ok(qadr5.includes('data-tajwid="ra-tafkhim"'));
+
+  // 3. Huruf Muqaththa'at: Mad Lazim Mukhaffaf Harfi (حيطهر = 1 Alif) vs Musyba' Harfi (نقص عسلكم = 3 Alif)
+  const yasin1 = renderTajwidHtml('يٰسۤ ۚ', true);
+  assert.ok(yasin1.includes('data-tajwid="mad-lazim-mukhaffaf-harfi"'), 'يٰ must be Mad Lazim Mukhaffaf Harfi');
+  assert.ok(yasin1.includes('data-tajwid="mad-lazim-musyba-harfi"'), 'سۤ must be Mad Lazim Musyba Harfi');
+
+  const maryam1 = renderTajwidHtml('كٓهٰيٰعٓصٓ ۚ', true);
+  assert.ok(maryam1.includes('data-tajwid="mad-lazim-mukhaffaf-harfi"'));
+  assert.ok(maryam1.includes('data-tajwid="mad-lazim-musyba-harfi"'));
+
+  const thaha1 = renderTajwidHtml('طٰهٰ ۚ', true);
+  assert.ok(thaha1.includes('data-tajwid="mad-lazim-mukhaffaf-harfi"'));
+  assert.equal(thaha1.includes('data-tajwid="mad-lazim-musyba-harfi"'), false);
+
+  // Ordinary maddah words must NEVER trigger Huruf Muqaththa'at
+  const baqarah6 = renderTajwidHtml('سَوَاۤءٌ عَلَيْهِمْ ءَاَنْذَرْتَهُمْ اَمْ لَمْ تُنْذِرْهُمْ لَا يُؤْمِنُوْنَ', true);
+  assert.equal(baqarah6.includes('data-tajwid="mad-lazim-musyba-harfi"'), false);
+  assert.ok(baqarah6.includes('data-tajwid="mad-wajib-muttasil"'), 'سَوَاۤءٌ must trigger Mad Wajib Muttasil');
+  assert.ok(baqarah6.includes('data-tajwid="izhar-halqi"'));
+  assert.ok(baqarah6.includes('data-tajwid="mad-aridh-lissukun"'), 'يُؤْمِنُوْنَ at ayah end must trigger Mad Aridh Lissukun');
+
+  // 4. Surah Quraisy (106:1-4 Kemenag RI): Mad Badal (\u0656), Mad Lin on Waqaf, Mad Shilah Thawilah (\u0657\u0653)
+  const quraisy1 = renderTajwidHtml('لِاِيْلٰفِ قُرَيْشٍۙ', true);
+  assert.ok(quraisy1.includes('data-tajwid="mad-badal"'), 'لِاِيْلٰفِ must trigger Mad Badal');
+  assert.ok(quraisy1.includes('data-tajwid="mad-lin"'), 'قُرَيْشٍۙ at ayah end must trigger Mad Lin');
+
+  const quraisy2 = renderTajwidHtml('اٖلٰفِهِمْ رِحْلَةَ الشِّتَاۤءِ وَالصَّيْفِۚ', true);
+  assert.ok(quraisy2.includes('data-tajwid="mad-badal"'), 'اٖلٰفِهِمْ (\u0656) must trigger Mad Badal');
+  assert.ok(quraisy2.includes('data-tajwid="mad-wajib-muttasil"'));
+  assert.ok(quraisy2.includes('data-tajwid="mad-lin"'), 'وَالصَّيْفِۚ at ayah end must trigger Mad Lin');
+
+  const humazah3 = renderTajwidHtml('يَحْسَبُ اَنَّ مَالَهٗٓ اَخْلَدَهٗۚ', true);
+  assert.ok(humazah3.includes('data-tajwid="mad-shilah"'), 'مَالَهٗٓ اَخْلَدَهٗ must trigger Mad Shilah');
+
+  // 5. Mad 'Iwadh vs Qalqalah Kubra vs Ta' Marbuthah Fathatain
+  const naba6 = renderTajwidHtml('اَلَمْ نَجْعَلِ الْاَرْضَ مِهٰدًاۙ', true);
+  assert.ok(naba6.includes('data-tajwid="mad-iwadh"'), 'مِهٰدًاۙ must trigger Mad Iwadh');
+  assert.equal(
+    naba6.includes('data-tajwid="qalqalah-kubra"'),
+    false,
+    'مِهٰدًاۙ is read مِهَادَا on waqaf, NOT Qalqalah Kubra'
+  );
+
+  const taMarbuthahEnd = renderTajwidHtml('رَبَّنَا اٰتِنَا مِنْ لَّدُنْكَ رَحْمَةً', true);
+  assert.equal(taMarbuthahEnd.includes('data-tajwid="mad-iwadh"'), false, 'Ta marbuthah fathatain becomes Ha sukun on waqaf, NOT Mad Iwadh');
+
+  // 6. Hadzful Mad li-Iltiqa'is Sakinain (dropped long vowel before Al-Ta'rif / Hamzah Wasl) & Ra Isti'la'
+  const fatihah6 = renderTajwidHtml('اِهْدِنَا الصِّرَاطَ الْمُسْتَقِيْمَۙ', true);
+  assert.equal(
+    fatihah6.includes('<span class="tajwid-mad-thabii" data-tajwid="mad-thabii">نَا</span>'),
+    false,
+    'نَا before الصِّرَاطَ drops Mad Thabii due to Iltiqaus Sakinain'
+  );
+  assert.ok(fatihah6.includes('data-tajwid="al-syamsiyah"'));
+  assert.ok(fatihah6.includes('data-tajwid="al-qamariyah"'));
+  assert.ok(fatihah6.includes('data-tajwid="mad-aridh-lissukun"'));
+
+  const falaq4 = renderTajwidHtml('وَمِنْ شَرِّ النَّفّٰثٰتِ فِى الْعُقَدِۙ', true);
+  assert.equal(
+    falaq4.includes('<span class="tajwid-mad-thabii" data-tajwid="mad-thabii">فِى</span>'),
+    false,
+    'فِى before الْعُقَدِ drops Mad Thabii due to Iltiqaus Sakinain'
+  );
+  assert.ok(falaq4.includes('class="tajwid-ghunnah"'), 'النَّفّٰثٰتِ must preserve Ghunnah on نَّ alongside Al-Syamsiyah');
+  assert.ok(falaq4.includes('data-tajwid="qalqalah-kubra"'));
+
+  const naba21 = renderTajwidHtml('اِنَّ جَهَنَّمَ كَانَتْ مِرْصَادًاۙ', true);
+  assert.ok(naba21.includes('data-tajwid="ra-tafkhim"'), 'مِرْصَادًا (Ra sukun after kasrah before Istila ص) must be Ra Tafkhim');
+  assert.equal(naba21.includes('data-tajwid="ra-tarqiq"'), false);
+
+  const firaun = renderTajwidHtml('اِذْهَبْ اِلٰى فِرْعَوْنَ اِنَّهٗ طَغٰى', true);
+  assert.ok(firaun.includes('data-tajwid="ra-tarqiq"'), 'فِرْعَوْنَ (Ra sukun after kasrah before non-Istila ع) must be Ra Tarqiq');
+});
+
+test('Arabic cursive shaping invariant: spans never start with orphaned combining diacritics or nest', () => {
+  const sampleVerses = [
+    'بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ',
+    'صِرَاطَ الَّذِيْنَ اَنْعَمْتَ عَلَيْهِمْ ەۙ غَيْرِ الْمَغْضُوْبِ عَلَيْهِمْ وَلَا الضَّاۤلِّيْنَ ࣖ',
+    'ذٰلِكَ الْكِتٰبُ لَا رَيْبَ ۛ فِيْهِ ۛ هُدًى لِّلْمُتَّقِيْنَۙ',
+    'وَمِنْ شَرِّ غَاسِقٍ اِذَا وَقَبَۙ',
+    'مِنْ شَرِّ الْوَسْوَاسِ ەۙ الْخَنَّاسِۖ',
+    'تَنَزَّلُ الْمَلٰۤىِٕكَةُ وَالرُّوْحُ فِيْهَا بِاِذْنِ رَبِّهِمْۚ مِنْ كُلِّ اَمْرٍۛ'
+  ];
+
+  const orphanedMarkAfterTag = /<\/?span[^>]*>[\u0610-\u061A\u064B-\u065F\u0670\u08F0-\u08F2]/;
+  const nestedSpan = /<span[^>]*>[^<]*<span/i;
+
+  for (const v of sampleVerses) {
+    const html = renderTajwidHtml(v, true);
+    assert.equal(nestedSpan.test(html), false, `Must not nest spans in: ${v}`);
+    assert.equal(
+      orphanedMarkAfterTag.test(html),
+      false,
+      `Must not split base letter from its combining harakat/shaddah/tanwin across span boundary in: ${html}`
+    );
+  }
+});

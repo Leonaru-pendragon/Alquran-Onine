@@ -85,25 +85,24 @@ body.theme-sepia .bg-white {
   word-spacing: 2px;
 }
 
-/* Interactive Tajwid span affordance inside Mushaf */
+/* Interactive Tajwid span affordance inside Mushaf (zero inline padding/weight change so HarfBuzz cursive shaping never breaks mid-word) */
 [data-tajwid],
 .tajwid-ghunnah {
   cursor: pointer;
-  border-radius: 0.25rem;
-  padding-inline: 1px;
+  border-radius: 0.2rem;
+  padding: 0;
   transition: background-color 150ms ease, opacity 150ms ease;
 }
 [data-tajwid]:hover,
 [data-tajwid]:active,
 .tajwid-ghunnah:hover,
 .tajwid-ghunnah:active {
-  background-color: rgba(16, 185, 129, 0.14);
+  background-color: rgba(16, 185, 129, 0.16);
 }
 
-/* Comprehensive Tajwid rule color classes (Light + Dark optical compensation) */
+/* Comprehensive Tajwid rule color classes (Light + Sepia + Dark optical compensation) */
 .tajwid-ghunnah {
   color: #059669; /* emerald */
-  font-weight: 600;
 }
 .dark .tajwid-ghunnah {
   color: #34d399;
@@ -111,23 +110,30 @@ body.theme-sepia .bg-white {
 
 .tajwid-ikhfa {
   color: #d97706; /* amber */
-  font-weight: 600;
 }
 .dark .tajwid-ikhfa {
   color: #fbbf24;
 }
 
 .tajwid-izhar {
-  color: #475569; /* slate steel */
-  font-weight: 600;
+  color: #0f766e; /* deep slate-teal so clearly distinct from plain black ink */
 }
 .dark .tajwid-izhar {
-  color: #cbd5e1;
+  color: #5eead4;
+}
+
+.tajwid-izhar-syafawi {
+  color: #334155; /* steel slate */
+}
+body.theme-sepia .tajwid-izhar-syafawi {
+  color: #5b4636;
+}
+.dark .tajwid-izhar-syafawi {
+  color: #94a3b8;
 }
 
 .tajwid-idgham-bighunnah {
   color: #0891b2; /* cyan */
-  font-weight: 600;
 }
 .dark .tajwid-idgham-bighunnah {
   color: #22d3ee;
@@ -135,7 +141,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-idgham-bilaghunnah {
   color: #0284c7; /* sky blue */
-  font-weight: 600;
 }
 .dark .tajwid-idgham-bilaghunnah {
   color: #38bdf8;
@@ -143,7 +148,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-iqlab {
   color: #4f46e5; /* indigo */
-  font-weight: 600;
 }
 .dark .tajwid-iqlab {
   color: #818cf8;
@@ -151,7 +155,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-ikhfa-syafawi {
   color: #db2777; /* rose pink */
-  font-weight: 600;
 }
 .dark .tajwid-ikhfa-syafawi {
   color: #f472b6;
@@ -159,7 +162,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-idgham-mimi {
   color: #0d9488; /* teal */
-  font-weight: 600;
 }
 .dark .tajwid-idgham-mimi {
   color: #2dd4bf;
@@ -167,7 +169,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-qalqalah {
   color: #dc2626; /* crimson red */
-  font-weight: 600;
 }
 .dark .tajwid-qalqalah {
   color: #f87171;
@@ -175,15 +176,34 @@ body.theme-sepia .bg-white {
 
 .tajwid-al-syamsiyah {
   color: #ea580c; /* burnt orange */
-  font-weight: 600;
 }
 .dark .tajwid-al-syamsiyah {
   color: #fb923c;
 }
 
+.tajwid-al-qamariyah {
+  color: #2563eb; /* royal blue */
+}
+.dark .tajwid-al-qamariyah {
+  color: #60a5fa;
+}
+
+.tajwid-ra-tafkhim {
+  color: #c2410c; /* warm copper */
+}
+.dark .tajwid-ra-tafkhim {
+  color: #fdba74;
+}
+
+.tajwid-ra-tarqiq {
+  color: #0e7490; /* turquoise */
+}
+.dark .tajwid-ra-tarqiq {
+  color: #67e8f9;
+}
+
 .tajwid-lafadz-allah {
   color: #b45309; /* warm gold bronze */
-  font-weight: 600;
 }
 .dark .tajwid-lafadz-allah {
   color: #fcd34d;
@@ -191,7 +211,6 @@ body.theme-sepia .bg-white {
 
 .tajwid-mad {
   color: #9333ea; /* royal purple */
-  font-weight: 600;
 }
 .dark .tajwid-mad {
   color: #c084fc;
@@ -199,18 +218,30 @@ body.theme-sepia .bg-white {
 
 .tajwid-mad-lazim {
   color: #be185d; /* deep magenta */
-  font-weight: 600;
 }
 .dark .tajwid-mad-lazim {
   color: #f472b6;
 }
 
+.tajwid-mad-aridh {
+  color: #a21caf; /* deep orchid */
+}
+.dark .tajwid-mad-aridh {
+  color: #e879f9;
+}
+
 .tajwid-mad-shilah {
   color: #7c3aed; /* violet */
-  font-weight: 600;
 }
 .dark .tajwid-mad-shilah {
   color: #a78bfa;
+}
+
+.tajwid-mad-thabii {
+  color: #6d28d9; /* soft indigo-violet */
+}
+.dark .tajwid-mad-thabii {
+  color: #c4b5fd;
 }
 
 /* Custom thin scrollbar */

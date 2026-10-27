@@ -91,7 +91,7 @@ function buildAudioUrl(surahNomor: number, ayahNomor: number): string {
   return `https://cdn.equran.id/audio-partial/Misyari-Rasyid-Al-Afasi/${s}${a}.mp3`;
 }
 
-export async function createAppServer() {
+export async function createAppServer(options?: { deferVite?: boolean }) {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -524,18 +524,27 @@ export async function createAppServer() {
     if (!process.env.DISABLE_HMR) {
       process.env.DISABLE_HMR = 'true';
     }
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: false,
-        ws: false
-      },
-      appType: 'spa'
-    });
+
+    const initVite = async () => {
+      const { createServer: createViteServer } = await import('vite');
+      return createViteServer({
+        server: {
+          middlewareMode: true,
+          hmr: false,
+          ws: false
+        },
+        appType: 'spa'
+      });
+    };
+
+    const vitePromise = initVite();
+    if (!options?.deferVite) {
+      await vitePromise;
+    }
 
     app.get('/@vite/client', async (req, res, next) => {
       try {
+        const vite = await vitePromise;
         const result = await vite.transformRequest(req.originalUrl || '/@vite/client');
         if (!result?.code) {
           next();
@@ -555,7 +564,14 @@ export async function createAppServer() {
       }
     });
 
-    app.use(vite.middlewares);
+    app.use(async (req, res, next) => {
+      try {
+        const vite = await vitePromise;
+        vite.middlewares(req, res, next);
+      } catch (err) {
+        next(err);
+      }
+    });
   } else {
     const distPath = path.join(__dirname, 'dist');
     app.use(express.static(distPath));
@@ -567,14 +583,47 @@ export async function createAppServer() {
   return app;
 }
 
+function resolveCliOption(flag: string): string | undefined {
+  const args = process.argv.slice(2);
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === flag && args[i + 1] && !args[i + 1].startsWith('-')) {
+      return args[i + 1];
+    }
+    if (arg.startsWith(`${flag}=`)) {
+      return arg.slice(flag.length + 1);
+    }
+  }
+  return undefined;
+}
+
 const isDirectRun =
-  process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
+  Boolean(process.argv[1]) &&
+  (() => {
+    try {
+      return fs.realpathSync(process.argv[1]) === fs.realpathSync(__filename);
+    } catch {
+      return path.resolve(process.argv[1]) === path.resolve(__filename);
+    }
+  })();
 
 if (isDirectRun) {
-  const PORT = Number(process.env.PORT) || 3000;
-  createAppServer().then((app) => {
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://0.0.0.0:${PORT}`);
+  const cliPort = Number(resolveCliOption('--port'));
+  const PORT = (Number.isInteger(cliPort) && cliPort > 0 ? cliPort : Number(process.env.PORT)) || 3000;
+  const HOST = resolveCliOption('--host') || '0.0.0.0';
+
+  createAppServer({ deferVite: true })
+    .then((app) => {
+      const server = app.listen(PORT, HOST, () => {
+        console.log(`Server running on http://${HOST}:${PORT}`);
+      });
+      server.on('error', (err) => {
+        console.error('Failed to bind HTTP server:', err);
+        process.exit(1);
+      });
+    })
+    .catch((err) => {
+      console.error('Failed to initialize application server:', err);
+      process.exit(1);
     });
-  });
 }

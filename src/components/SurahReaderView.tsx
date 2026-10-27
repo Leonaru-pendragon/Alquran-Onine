@@ -325,13 +325,16 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
       target.getAttribute('data-tajwid') ||
       (target.classList.contains('tajwid-ghunnah') ? 'ghunnah' : null);
     if (!ruleId) return;
+    const cleanedMatch =
+      (target.textContent || '').replace(/[\u06D5-\u06ED\u08D4-\u08FF]/g, '').trim() ||
+      (target.textContent || '').trim();
     setInspectedTajwid((prev) =>
-      prev && prev.ayahNomor === ayahNomor && prev.ruleId === ruleId && prev.matchedText === target.textContent
+      prev && prev.ayahNomor === ayahNomor && prev.ruleId === ruleId && prev.matchedText === cleanedMatch
         ? null
         : {
             ayahNomor,
             ruleId,
-            matchedText: (target.textContent || '').trim()
+            matchedText: cleanedMatch
           }
     );
   };
@@ -698,11 +701,17 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
       {/* Bismillah Calligraphy (Shown for all surahs except Surah At-Taubah 9) */}
       {surah.nomor !== 9 && surah.nomor !== 1 && (
         <div className="text-center py-6">
-          <div className="font-arabic text-3xl sm:text-4xl text-slate-800 dark:text-slate-200 [body.theme-sepia_&]:text-[#2c2217] tracking-wider">
-            بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-          </div>
+          <div
+            onClick={(e) => handleAyahArabicClick(0, e)}
+            className="font-arabic text-3xl sm:text-4xl leading-[2.2] py-1 text-slate-800 dark:text-slate-200 [body.theme-sepia_&]:text-[#2c2217] tracking-wider"
+            dir="rtl"
+            lang="ar"
+            dangerouslySetInnerHTML={{
+              __html: renderTajwidHtml('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ', settings.showTajwid)
+            }}
+          />
           {settings.showLatin && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#705e49] italic mt-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400 [body.theme-sepia_&]:text-[#705e49] italic mt-3">
               Bismillāhir-raḥmānir-raḥīm
             </p>
           )}
@@ -711,6 +720,49 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
               Dengan nama Allah Yang Maha Pengasih, Maha Penyayang.
             </p>
           )}
+          {settings.showTajwid &&
+            inspectedTajwid?.ayahNomor === 0 &&
+            (() => {
+              const rule = getTajwidRuleById(inspectedTajwid.ruleId);
+              if (!rule) return null;
+              return (
+                <div className="mt-4 max-w-xl mx-auto text-left p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 [body.theme-sepia_&]:bg-[#efe6d5] border border-slate-200/80 dark:border-slate-700/80 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: rule.hexColor }}
+                      />
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {rule.nama}
+                      </h4>
+                      <span className="font-arabic text-lg text-slate-900 dark:text-slate-100 px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                        {inspectedTajwid.matchedText}
+                      </span>
+                      {rule.kadarHarakat && (
+                        <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-100/80 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300">
+                          {rule.kadarHarakat}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setInspectedTajwid(null)}
+                      aria-label="Tutup penjelasan tajwid"
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    {rule.deskripsi}
+                  </p>
+                  <p className="text-xs text-emerald-800 dark:text-emerald-300 [body.theme-sepia_&]:text-[#5c4934] font-medium leading-relaxed">
+                    Cara baca: {rule.caraBaca}
+                  </p>
+                </div>
+              );
+            })()}
         </div>
       )}
 
@@ -930,6 +982,9 @@ export const SurahReaderView: React.FC<SurahReaderViewProps> = ({
 
                       <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                         {rule.deskripsi}
+                      </p>
+                      <p className="text-xs text-emerald-800 dark:text-emerald-300 [body.theme-sepia_&]:text-[#5c4934] font-medium leading-relaxed">
+                        Cara baca: {rule.caraBaca}
                       </p>
 
                       {onNavigateToTajwid && (
